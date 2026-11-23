@@ -394,12 +394,12 @@
     };
     const tick = now => {
       if (run !== fxRun) return;
-      const dt = Math.min(0.1, (now - last) / 1000); last = now;
+      const dt = Math.min(0.25, (now - last) / 1000); last = now;
       if (launched < ROCKETS && Math.random() < dt * 12) launch();
       ctx.globalCompositeOperation = 'destination-out'; ctx.globalAlpha = 1; ctx.fillStyle = 'rgba(0,0,0,0.2)'; ctx.fillRect(0, 0, W, H);
       ctx.globalCompositeOperation = 'source-over';
       rockets = rockets.filter(r => { r.y += r.vy * dt; ctx.fillStyle = r.c; ctx.fillRect(r.x - 1.5 * dpr, r.y, 3 * dpr, 16 * dpr); if (r.y <= r.top) { burst(r); return false; } return true; });
-      parts = parts.filter(p => { p.vy += 220 * dpr * dt; p.vx *= 0.985; p.vy *= 0.985; p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt * 0.8;
+      parts = parts.filter(p => { p.vy += 220 * dpr * dt; p.vx *= 0.985; p.vy *= 0.985; p.x += p.vx * dt; p.y += p.vy * dt; p.life -= dt * 0.55;
         if (p.life <= 0) return false; ctx.globalAlpha = p.life; ctx.fillStyle = p.c; ctx.beginPath(); ctx.arc(p.x, p.y, p.size * dpr, 0, 6.283); ctx.fill(); return true; });
       ctx.globalAlpha = 1;
       if (launched < ROCKETS || rockets.length || parts.length) requestAnimationFrame(tick); else ctx.clearRect(0, 0, W, H);
