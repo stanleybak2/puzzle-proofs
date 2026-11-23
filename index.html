@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Puzzle proofs</title>
+<link rel="stylesheet" href="style.css?v=1">
+</head>
+<body>
+<canvas id="fx"></canvas>
+
+<div id="win" role="dialog" aria-modal="true" aria-labelledby="win-title">
+  <div class="card">
+    <h2 id="win-title">Solved!</h2>
+    <p id="win-text"></p>
+    <label for="win-pick">Next puzzle</label>
+    <select id="win-pick"></select>
+    <div class="row">
+      <button id="win-close">Stay here</button>
+      <button id="win-start" class="primary">Start</button>
+    </div>
+  </div>
+</div>
+
+<section id="home">
+  <header><h1>Puzzle proofs</h1></header>
+  <p class="lead">Solve grid puzzles as proofs. Every mark needs a reason, and the reason is always one of the game's own rules. Pick a game.</p>
+  <div id="cards"></div>
+  <footer id="foot-home"></footer>
+</section>
+
+<section id="play" hidden>
+  <header>
+    <button id="to-home">All games</button>
+    <h1 id="game-title"></h1>
+    <label>Puzzle <select id="pick"></select></label>
+    <button id="restart">Restart</button>
+    <button id="show-demo">Show demo</button>
+    <button id="copystate">Copy State as Text</button>
+  </header>
+  <main>
+    <div class="left">
+      <div class="tools" id="tools">
+        <div class="group"><span>Click does</span>
+          <button id="m-deduce" class="on">Deduce</button>
+          <button id="m-suppose">Assume…</button>
+          <button id="m-split">Case split…</button>
+        </div>
+        <div class="group" id="marks"></div>
+      </div>
+      <div id="board"></div>
+      <div id="demo" hidden>
+        <div id="demo-count"></div>
+        <div id="demo-text"></div>
+        <div class="acts">
+          <button id="demo-skip">Skip demo</button>
+          <button id="demo-next" class="primary">Next</button>
+        </div>
+      </div>
+      <div id="hint"></div>
+      <div id="msg"></div>
+      <div id="solved"><span id="solved-text"></span><button id="next">Choose next puzzle</button></div>
+      <details open id="d-rules">
+        <summary>Game rules</summary>
+        <ul id="rules"></ul>
+      </details>
+      <details id="d-controls">
+        <summary>Proof controls</summary>
+        <ul>
+          <li>Every mark needs a reason. Click the clue that is your reason. The cells that rule talks about get a dashed outline.</li>
+          <li>Some cells and labels carry more than one rule. Click the same place again to move to its next rule.</li>
+          <li>Then mark an outlined cell. "Mark as" shows what the left and right mouse buttons place. The step is accepted only if that one rule forces it. <kbd>Esc</kbd> drops the cited clue.</li>
+          <li>The game applies the tedious consequences for you. The rules list says which ones.</li>
+          <li><b>Undo</b> takes back one action at a time.</li>
+          <li><b>Assume</b> opens an assumption, shown in purple. If a rule becomes impossible inside it, click that clue and press "This rule is broken". The assumption closes and its opposite is proved.</li>
+          <li><b>Case split</b> and "Cases from this rule" open cases side by side. Click a case to work in it. A contradiction closes a case. "End cases" keeps whatever is true in every open case.</li>
+        </ul>
+      </details>
+    </div>
+    <div class="right">
+      <div class="tools">
+        <h2>Proof</h2>
+        <button id="undo">Undo</button>
+        <button id="endcases">End cases</button>
+        <button id="discard">Discard assumption</button>
+      </div>
+      <div id="proof"></div>
+    </div>
+  </main>
+  <footer id="foot-play"></footer>
+</section>
+
+<script src="core.js?v=1"></script>
+<script src="games/lightup.js?v=1"></script>
+<script src="games/counting.js?v=1"></script>
+<script src="games/numbers.js?v=1"></script>
+<script src="games/treetent.js?v=1"></script>
+<script src="games/regions.js?v=1"></script>
+<script src="games/masyu.js?v=1"></script>
+<script src="games/truthtable.js?v=1"></script>
+<script src="puzzles/all.js?v=1"></script>
+<script src="ui.js?v=1"></script>
+</body>
+</html>
