@@ -33,8 +33,9 @@
     id: 'nurikabe', title: 'Nurikabe', blurb: 'Shade cells black to leave islands of the right sizes.',
     rules: [
       'Every cell is black or white. Numbered cells are white.',
-      'White cells form islands. Every island holds exactly one number, and its size is that number.',
-      'All black cells form one connected area.',
+      'White cells that share a side belong to the same island. Cells that only touch at a corner do not, so two islands may sit diagonally next to each other.',
+      'Every island holds exactly one number, and its size is that number.',
+      'All black cells form one connected area. Here too, only shared sides connect.',
       'No 2 by 2 block may be all black.',
     ],
     demo: { id: 'demo', title: 'Demo', grid: [[2, 0, 0], [0, 0, 0], [0, 0, 1]] },
