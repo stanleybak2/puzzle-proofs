@@ -519,7 +519,7 @@
     return new Promise(resolve => {
       let done = false, w = null, timer = null;
       const finish = r => { if (done) return; done = true; clearTimeout(timer); if (w) w.terminate(); job = null; resolve(r); };
-      try { w = new Worker('worker.js?v=17'); } catch (e) { w = null; }
+      try { w = new Worker('worker.js?v=18'); } catch (e) { w = null; }
       job = { cancel: () => finish({ cancelled: true }) };
       if (!w) {   // no worker (for example a page opened straight from disk): run here, still under the time limit
         setTimeout(() => { try { finish(msg.cmd === 'rate' ? LG.rate(msg.game, msg.def, msg.ms) : LG.generate(msg.game, msg.n, msg.want, msg.ms)); } catch (e) { finish({ error: String(e.message || e) }); } }, 30);

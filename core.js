@@ -182,6 +182,7 @@
     explainNo(key, v, val, f) {
       const G = this.G, a = G.anchor(key), cons = this._cons(key);
       if (cons.some(c => broken(c, f))) return 'This rule is already broken, so it cannot justify a step.';
+      for (const c of cons) { const t = c.why && c.why(v, val, f); if (t) return t; }
       const opp = cons.some(c => forced(c, f).some(m => m[0] === v && m[1] === 1 - val));
       if (opp) { const n = G.name(v, 1 - val); return 'This rule forces the opposite: ' + n.who + ' ' + n.one + '.'; }
       const c = cons.find(x => x.k === 'lin' && !x.neg && x.pos.includes(v));
