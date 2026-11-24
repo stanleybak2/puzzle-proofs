@@ -76,7 +76,7 @@
           if (tree === null || isTree(cell)) return { msg: 'Drag between a tree and the cell beside it.' };
           const v = lv[tree + ',' + cell];
           if (v === undefined) return { msg: 'A tree can only be linked to a cell directly beside it.' };
-          return { tries: [{ anchor: 'c' + tree, v, val: 1 }, { anchor: 'c' + cell, v, val: 1 }], failMsg: 'Nothing forces this link yet. The tree must have only this cell left, or the tent only this tree.' };
+          return { tries: [{ anchor: 'c' + tree, v, val: 1 }, { anchor: 'c' + cell, v, val: 1 }], failMsg: 'Nothing forces this link right now.' };
         },
         view: {
           w, h, clues: { e: def.rows, s: def.cols },

@@ -179,19 +179,9 @@
       else blk.items.push({ type: 'step', anchor: key, marks: [[v, val]] });
       return { ok: true };
     }
-    explainNo(key, v, val, f) {
-      const G = this.G, a = G.anchor(key), cons = this._cons(key);
-      if (cons.some(c => broken(c, f))) return 'This rule is already broken, so it cannot justify a step.';
-      for (const c of cons) { const t = c.why && c.why(v, val, f); if (t) return t; }
-      const opp = cons.some(c => forced(c, f).some(m => m[0] === v && m[1] === 1 - val));
-      if (opp) { const n = G.name(v, 1 - val); return 'This rule forces the opposite: ' + n.who + ' ' + n.one + '.'; }
-      const c = cons.find(x => x.k === 'lin' && !x.neg && x.pos.includes(v));
-      if (c && a.count) {
-        const s = linState(c, f), want = c.lo === c.hi ? 'exactly ' + c.lo : c.hi >= 90 ? 'at least ' + c.lo : c.lo + ' to ' + c.hi;
-        return 'This rule needs ' + want + ' of the outlined ' + a.count + '. It has ' + s.cur + ' so far and ' + s.up.length + ' still undecided, so this one is not forced yet.';
-      }
-      return 'This rule alone does not force that yet.';
-    }
+    // A refused step gets one plain message. It must not say whether the mark is true, what the rule
+    // does force, or how close it is: that would be a hint, and hints are the Hint button's job.
+    explainNo() { return 'The cited rule does not force that right now.'; }
     suppose(v, val) {
       const path = this.path(), blk = this._open(path);
       if (!blk) return fail('This case is already closed. Click another case, or end the cases.');
@@ -217,15 +207,15 @@
       if (!blk) return fail('This case is already closed. Click another case, or end the cases.');
       const f = this.facts(), cons = this._cons(key);
       if (!cons.length) return fail('That clue cannot be cited here.');
-      if (cons.some(c => broken(c, f))) return fail('This rule is already broken. Declare the contradiction instead.');
+      if (cons.some(c => broken(c, f))) return fail('This rule does not offer a choice right now.');
       for (const c of cons) {
         if (c.k !== 'lin' || c.neg) continue;
         const s = linState(c, f);
         if (s.cur >= c.lo) continue;
-        if (s.up.length < 2 || s.cur + s.up.length === c.lo) return fail('Nothing is left to choose here: that is a direct step.');
+        if (s.up.length < 2 || s.cur + s.up.length === c.lo) return fail('This rule does not offer a choice right now.');
         return this._addCases(blk, { anchor: key }, s.up.map(v => [v, 1]));
       }
-      return fail('This rule does not leave a choice right now.');
+      return fail('This rule does not offer a choice right now.');
     }
     contradiction(key) {
       const path = this.path(), blk = this._open(path);

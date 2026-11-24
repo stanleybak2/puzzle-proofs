@@ -102,11 +102,9 @@
         // Black cells first. A looked-ahead white cell is usually white because of a black cell next to it,
         // and once that black cell is marked the white one follows by the plain rule.
         out.forced.push(...(black.length ? black : white));
-        out.later = black.length ? white : [];
         return out;
       });
-      const isl = B.con({ k: 'fn', vars: null, broken: f => islands(f).broken, forced: f => islands(f).forced,
-        why: (v, val, f) => ((islands(f).later || []).some(m => m[0] === v && m[1] === val) ? 'That is true, but first mark the cells this rule forces black. Hint shows one. The white cell then follows more simply.' : null) });
+      const isl = B.con({ k: 'fn', vars: null, broken: f => islands(f).broken, forced: f => islands(f).forced });
       const conn = B.con(connectRule(g, (id, f) => ({ B: 'in', W: 'out', '?': '?' }[st(id, f)]), id => vOf[id], 1));
       B.anchor('isl', { text: 'the island rule', rule: 'Every island of white cells holds exactly one number, and its size is that number.', kind: 'island', brokenText: 'an island can no longer come out right' }).cons.push(isl);
       B.anchor('conn', { text: 'the black cells connect', rule: 'All black cells form one connected area.', kind: 'connect', brokenText: 'the black cells are cut apart' }).cons.push(conn);
