@@ -161,3 +161,8 @@ kbd { border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; font: i
 #mk-start { gap: 8px 14px; }
 #hint-group { flex-basis: 100%; align-items: flex-start; flex-wrap: nowrap; gap: 8px; }
 #hint-text { flex: 1 1 auto; padding: 5px 10px; border: 1px solid var(--ok); border-radius: 6px; color: var(--ok); background: var(--panel); font-size: 14px; }
+/* The demo box sits at the top of the proof column, where the steps it describes appear. */
+.right > #demo { margin: 0 0 12px; background: color-mix(in srgb, var(--anchor) 8%, var(--panel)); font-size: 16px; }
+#demo .acts { align-items: center; }
+#demo .acts .more { margin-right: auto; color: var(--muted); font-size: 13px; }
+#demo-count { font-weight: 600; color: var(--anchor); }

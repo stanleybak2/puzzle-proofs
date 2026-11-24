@@ -87,6 +87,8 @@
   // ---------- demo ----------
   function startDemo(returnTo) {
     closeWin(); stopFx();
+    pi = returnTo || 0;             // the puzzle to open after the demo; also keeps the index valid for this game
+    $('pick').selectedIndex = -1;   // nothing chosen yet, so any choice in the list counts as a change
     G = game.create(game.demo); proof = new LG.Proof(G);
     resetUi();
     // The walk-through is planned from direct steps only, one cited clue per page.
@@ -387,8 +389,8 @@
     $('discard').disabled = !!demo || path.length < 2;
     const item = path.length > 1 ? path[path.length - 2].items.slice(-1)[0] : null;
     $('discard').textContent = item && item.type === 'cases' ? 'Discard cases' : 'Discard assumption';
-    for (const id of ['pick', 'restart', 'copystate', 'to-make', 'hint-btn']) $(id).disabled = !!demo;
-    $('del-mine').hidden = !defs[pi].mine || !!demo;
+    for (const id of ['restart', 'copystate', 'to-make', 'hint-btn']) $(id).disabled = !!demo;
+    $('del-mine').hidden = !!demo || !(defs[pi] && defs[pi].mine);
     $('show-demo').hidden = !game.demo || !!demo;
     const m = $('msg'); m.textContent = msg ? msg.text : ''; m.className = msg ? msg.kind : '';
     $('hint-text').textContent = hintMsg || ''; $('hint-text').hidden = !hintMsg || !!demo;
@@ -471,7 +473,8 @@
   $('discard').onclick = act(() => proof.discard(), 'Discarded.');
   $('endcases').onclick = act(() => proof.endCases(), r => say(r.open === 1 ? 'Only one case is still open, so everything in it holds.' : 'Kept what agrees in every open case.', 'ok'));
   $('restart').onclick = () => load(pi, true);
-  $('pick').onchange = () => load($('pick').selectedIndex);
+  // Choosing a puzzle during the demo skips the demo.
+  $('pick').onchange = () => { if (demo) writeAll(a => { a.demo = a.demo || {}; a.demo[game.id] = 1; }); load($('pick').selectedIndex); };
   $('to-home').onclick = showHome;
   $('show-demo').onclick = () => startDemo(pi);
   $('demo-next').onclick = demoNext;
@@ -519,7 +522,7 @@
     return new Promise(resolve => {
       let done = false, w = null, timer = null;
       const finish = r => { if (done) return; done = true; clearTimeout(timer); if (w) w.terminate(); job = null; resolve(r); };
-      try { w = new Worker('worker.js?v=19'); } catch (e) { w = null; }
+      try { w = new Worker('worker.js?v=21'); } catch (e) { w = null; }
       job = { cancel: () => finish({ cancelled: true }) };
       if (!w) {   // no worker (for example a page opened straight from disk): run here, still under the time limit
         setTimeout(() => { try { finish(msg.cmd === 'rate' ? LG.rate(msg.game, msg.def, msg.ms) : LG.generate(msg.game, msg.n, msg.want, msg.ms)); } catch (e) { finish({ error: String(e.message || e) }); } }, 30);

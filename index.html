@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Puzzle proofs</title>
-<link rel="stylesheet" href="style.css?v=20">
+<link rel="stylesheet" href="style.css?v=21">
 </head>
 <body>
 <canvas id="fx"></canvas>
@@ -52,14 +52,6 @@
         <div class="group" id="marks"></div>
       </div>
       <div id="board"></div>
-      <div id="demo" hidden>
-        <div id="demo-count"></div>
-        <div id="demo-text"></div>
-        <div class="acts">
-          <button id="demo-skip">Skip demo</button>
-          <button id="demo-next" class="primary">Next</button>
-        </div>
-      </div>
       <div id="hint"></div>
       <div id="msg"></div>
       <div id="solved"><span id="solved-text"></span><button id="next">Choose next puzzle</button></div>
@@ -83,6 +75,15 @@
       </details>
     </div>
     <div class="right">
+      <div id="demo" hidden>
+        <div id="demo-count"></div>
+        <div id="demo-text"></div>
+        <div class="acts">
+          <span class="more">Choosing a puzzle at the top also skips the demo.</span>
+          <button id="demo-skip">Skip demo</button>
+          <button id="demo-next" class="primary">Next</button>
+        </div>
+      </div>
       <div class="tools">
         <h2>Proof</h2>
         <button id="undo">Undo</button>
@@ -141,17 +142,17 @@
   </main>
 </section>
 
-<script src="core.js?v=20"></script>
-<script src="games/lightup.js?v=20"></script>
-<script src="games/counting.js?v=20"></script>
-<script src="games/numbers.js?v=20"></script>
-<script src="games/treetent.js?v=20"></script>
-<script src="games/regions.js?v=20"></script>
-<script src="games/masyu.js?v=20"></script>
-<script src="games/truthtable.js?v=20"></script>
-<script src="gen.js?v=20"></script>
-<script src="editor.js?v=20"></script>
-<script src="puzzles/all.js?v=20"></script>
-<script src="ui.js?v=20"></script>
+<script src="core.js?v=21"></script>
+<script src="games/lightup.js?v=21"></script>
+<script src="games/counting.js?v=21"></script>
+<script src="games/numbers.js?v=21"></script>
+<script src="games/treetent.js?v=21"></script>
+<script src="games/regions.js?v=21"></script>
+<script src="games/masyu.js?v=21"></script>
+<script src="games/truthtable.js?v=21"></script>
+<script src="gen.js?v=21"></script>
+<script src="editor.js?v=21"></script>
+<script src="puzzles/all.js?v=21"></script>
+<script src="ui.js?v=21"></script>
 </body>
 </html>
