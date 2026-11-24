@@ -9,7 +9,8 @@
   let game = null, defs = [], pi = 0, G = null, proof = null;
   let mk = null;   // set while the New puzzle screen is open
   let anchor = null, anchorAt = null, anchorIdx = 0, mode = 'deduce', mark = 0, digit = 0, msg = null, wasSolved = false, demo = null, geo = null;
-  const say = (text, kind) => { msg = text ? { text, kind: kind || 'err' } : null; };
+  let hintMsg = null;   // what the Hint button last said; any other action clears it
+  const say = (text, kind) => { msg = text ? { text, kind: kind || 'err' } : null; hintMsg = null; };
 
   // ---------- storage ----------
   const KEY = 'puzzle-proofs:v1';
@@ -81,7 +82,7 @@
     wasSolved = proof.solved();
     render();
   }
-  function resetUi() { anchor = null; anchorAt = null; anchorIdx = 0; mode = 'deduce'; msg = null; digit = 0; buildMarks(); }
+  function resetUi() { anchor = null; anchorAt = null; anchorIdx = 0; mode = 'deduce'; msg = null; hintMsg = null; digit = 0; buildMarks(); }
 
   // ---------- demo ----------
   function startDemo(returnTo) {
@@ -194,24 +195,25 @@
     for (const t of d.tries) { last = proof.tryStep(t.anchor, t.v, t.val); if (last.ok) { say(one(t.v, t.val) + '.', 'ok'); anchor = null; anchorAt = null; return render(); } }
     say(d.failMsg || last.msg); render();
   }
-  // Hint: is there a direct step? The first press cites the clue. A second press shows what it forces.
+  // Hint: is there a direct step? It cites the rule, points at the cell, and writes its answer beside the button.
+  // The first press says where to look. A second press says what goes there.
   let hinted = null;
   function hint() {
     if (demo) return;
     say(null); mode = 'deduce';
     const cite = key => { anchor = key; anchorAt = G.anchor(key).at || null; };
+    const tell = (text, vars) => { hintMsg = text; render(); if (vars) highlight(vars, true); };
     const blk = proof.path().slice(-1)[0], f = proof.facts();
-    if (proof.status()) { say('This puzzle is already solved.', 'ok'); return render(); }
-    if (blk.closed) { say('Hint: this case is closed. Click another case in the proof, or press "End cases".', 'ok'); return render(); }
+    if (proof.status()) return tell('This puzzle is already solved.');
+    if (blk.closed) return tell('This case is closed. Click another case in the proof, or press "End cases".');
     const broke = proof.path().length > 1 || G.rootContradiction ? G.anchorKeys.find(k => proof.isBroken(k, f)) : null;
-    if (broke) { cite(broke); say('Hint: a rule is broken. ' + brokenText(broke).replace(/^./, c => c.toUpperCase()) + '. Press "This rule is broken".', 'ok'); return render(); }
+    if (broke) { cite(broke); return tell('A rule is broken: ' + brokenText(broke) + '. It is cited for you. Press "This rule is broken".'); }
     const key = G.anchorKeys.find(k => proof.forcedBy(k, f).length);
-    if (!key) { anchor = null; anchorAt = null; say('Hint: no single rule forces anything right now. Use Assume or Case split.', 'ok'); return render(); }
-    const again = hinted && hinted.proof === proof && hinted.ver === proof._ver && hinted.key === key;
+    if (!key) { anchor = null; anchorAt = null; return tell('No single rule forces anything right now. Use Assume or Case split.'); }
+    const m = proof.forcedBy(key, f)[0], again = hinted && hinted.proof === proof && hinted.ver === proof._ver && hinted.key === key;
     cite(key);
-    if (!again) { hinted = { proof, ver: proof._ver, key }; say('Hint: a direct step is available from ' + G.anchor(key).text + '. Press Hint again to see what it forces.', 'ok'); return render(); }
-    const m = proof.forcedBy(key, f)[0];
-    say('Hint: ' + G.anchor(key).text + ' forces that ' + one(m[0], m[1]) + '.', 'ok'); render(); highlight([m[0]], true);
+    if (!again) { hinted = { proof, ver: proof._ver, key }; return tell('Look at ' + G.name(m[0], m[1]).who + ' (boxed in green). The rule to cite is: ' + G.anchor(key).text + '. Press Hint again to see what goes there.', [m[0]]); }
+    tell(G.anchor(key).text.replace(/^./, c => c.toUpperCase()) + ' forces that ' + one(m[0], m[1]) + '.', [m[0]]);
   }
   const act = (fn, after) => () => { say(null); const r = fn(); if (report(r, typeof after === 'string' ? after : null) && typeof after === 'function') after(r); render(); };
 
@@ -391,6 +393,7 @@
     $('del-mine').hidden = !defs[pi].mine || !!demo;
     $('show-demo').hidden = !game.demo || !!demo;
     const m = $('msg'); m.textContent = msg ? msg.text : ''; m.className = msg ? msg.kind : '';
+    $('hint-text').textContent = hintMsg || ''; $('hint-text').hidden = !hintMsg || !!demo;
     const st = demo ? null : proof.status();
     $('solved').style.display = st ? 'block' : 'none';
     $('solved-text').textContent = winText(st);

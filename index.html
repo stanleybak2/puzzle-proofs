@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Puzzle proofs</title>
-<link rel="stylesheet" href="style.css?v=15">
+<link rel="stylesheet" href="style.css?v=16">
 </head>
 <body>
 <canvas id="fx"></canvas>
@@ -48,7 +48,7 @@
           <button id="m-suppose">Assume…</button>
           <button id="m-split">Case split…</button>
         </div>
-        <div class="group"><button id="hint-btn">Hint</button></div>
+        <div class="group" id="hint-group"><button id="hint-btn">Hint</button><div id="hint-text" hidden></div></div>
         <div class="group" id="marks"></div>
       </div>
       <div id="board"></div>
@@ -75,7 +75,7 @@
           <li>Then mark an outlined cell. "Mark as" shows what the left and right mouse buttons place. The step is accepted only if that one rule forces it. <kbd>Esc</kbd> drops the cited clue.</li>
           <li>The game applies the tedious consequences for you. The rules list says which ones.</li>
           <li><b>Undo</b> takes back one action at a time.</li>
-          <li><b>Hint</b> says whether any single rule forces something right now, and cites that clue for you. Press it again to see what the clue forces. It also points out a broken rule inside an assumption.</li>
+          <li><b>Hint</b> says whether any single rule forces something right now. It boxes the cell in green, cites the rule for you, and writes both beside the button. Press it again to see what goes in the cell. It also points out a broken rule inside an assumption.</li>
           <li>Each level of nesting has its own colour, on the board and in the proof: an assumption inside a case is a different colour from the case.</li>
           <li><b>Assume</b> opens an assumption, shown in purple. If a rule becomes impossible inside it, click that clue and press "This rule is broken". The assumption closes and its opposite is proved.</li>
           <li><b>Case split</b> and "Cases from this rule" open cases side by side. Click a case to work in it. A contradiction closes a case. "End cases" keeps whatever is true in every open case.</li>
@@ -141,17 +141,17 @@
   </main>
 </section>
 
-<script src="core.js?v=15"></script>
-<script src="games/lightup.js?v=15"></script>
-<script src="games/counting.js?v=15"></script>
-<script src="games/numbers.js?v=15"></script>
-<script src="games/treetent.js?v=15"></script>
-<script src="games/regions.js?v=15"></script>
-<script src="games/masyu.js?v=15"></script>
-<script src="games/truthtable.js?v=15"></script>
-<script src="gen.js?v=15"></script>
-<script src="editor.js?v=15"></script>
-<script src="puzzles/all.js?v=15"></script>
-<script src="ui.js?v=15"></script>
+<script src="core.js?v=16"></script>
+<script src="games/lightup.js?v=16"></script>
+<script src="games/counting.js?v=16"></script>
+<script src="games/numbers.js?v=16"></script>
+<script src="games/treetent.js?v=16"></script>
+<script src="games/regions.js?v=16"></script>
+<script src="games/masyu.js?v=16"></script>
+<script src="games/truthtable.js?v=16"></script>
+<script src="gen.js?v=16"></script>
+<script src="editor.js?v=16"></script>
+<script src="puzzles/all.js?v=16"></script>
+<script src="ui.js?v=16"></script>
 </body>
 </html>
