@@ -195,9 +195,8 @@
     for (const t of d.tries) { last = proof.tryStep(t.anchor, t.v, t.val); if (last.ok) { say(one(t.v, t.val) + '.', 'ok'); anchor = null; anchorAt = null; return render(); } }
     say(d.failMsg || last.msg); render();
   }
-  // Hint: is there a direct step? It cites the rule, points at the cell, and writes its answer beside the button.
-  // The first press says where to look. A second press says what goes there.
-  let hinted = null;
+  // Hint: is there a direct step? One press cites the rule, boxes the cell, and writes both beside the button.
+  // It does not say what goes in the cell.
   function hint() {
     if (demo) return;
     say(null); mode = 'deduce';
@@ -210,10 +209,9 @@
     if (broke) { cite(broke); return tell('A rule is broken: ' + brokenText(broke) + '. It is cited for you. Press "This rule is broken".'); }
     const key = G.anchorKeys.find(k => proof.forcedBy(k, f).length);
     if (!key) { anchor = null; anchorAt = null; return tell('No single rule forces anything right now. Use Assume or Case split.'); }
-    const m = proof.forcedBy(key, f)[0], again = hinted && hinted.proof === proof && hinted.ver === proof._ver && hinted.key === key;
+    const m = proof.forcedBy(key, f)[0];
     cite(key);
-    if (!again) { hinted = { proof, ver: proof._ver, key }; return tell('Look at ' + G.name(m[0], m[1]).who + ' (boxed in green). The rule to cite is: ' + G.anchor(key).text + '. Press Hint again to see what goes there.', [m[0]]); }
-    tell(G.anchor(key).text.replace(/^./, c => c.toUpperCase()) + ' forces that ' + one(m[0], m[1]) + '.', [m[0]]);
+    tell('Look at ' + G.name(m[0], m[1]).who + ' (boxed in green). The rule to cite is: ' + G.anchor(key).text + '.', [m[0]]);
   }
   const act = (fn, after) => () => { say(null); const r = fn(); if (report(r, typeof after === 'string' ? after : null) && typeof after === 'function') after(r); render(); };
 
@@ -521,7 +519,7 @@
     return new Promise(resolve => {
       let done = false, w = null, timer = null;
       const finish = r => { if (done) return; done = true; clearTimeout(timer); if (w) w.terminate(); job = null; resolve(r); };
-      try { w = new Worker('worker.js?v=12'); } catch (e) { w = null; }
+      try { w = new Worker('worker.js?v=17'); } catch (e) { w = null; }
       job = { cancel: () => finish({ cancelled: true }) };
       if (!w) {   // no worker (for example a page opened straight from disk): run here, still under the time limit
         setTimeout(() => { try { finish(msg.cmd === 'rate' ? LG.rate(msg.game, msg.def, msg.ms) : LG.generate(msg.game, msg.n, msg.want, msg.ms)); } catch (e) { finish({ error: String(e.message || e) }); } }, 30);

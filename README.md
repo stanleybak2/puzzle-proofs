@@ -28,12 +28,12 @@ Play it at https://stanleybak2.github.io/puzzle-proofs/
 | Skyscrapers | 10 | LEGUP, generated 3x3 |
 | Tree Tent | 10 | generated |
 | Battleship | 8 | generated |
-| Nurikabe | 29 | LEGUP |
+| Nurikabe | 30 | LEGUP |
 | Heyawake | 8 | generated |
 | Masyu | 15 | LEGUP |
 | Short Truth Table | 12 | written for this project, one from LEGUP |
 
-That is 256 puzzles. Every one was checked by a solver to have exactly one solution. A Short Truth Table puzzle has either one counterexample or none.
+That is 257 puzzles. Every one was checked by a solver to have exactly one solution. A Short Truth Table puzzle has either one counterexample or none.
 
 **Which LEGUP boards are included.** Every LEGUP sample board that passes three checks: it has exactly one solution, the checker can rate it, and the check finishes in about a second. Boards left out: those with no solution or several, a few too hard to rate, Fillapix boards too slow to check, and Nurikabe boards larger than 10 by 10, which were not tried. LEGUP has no sample files for Battleship and Heyawake. Its Tree Tent files store the row counts twice in place of the column counts, so they have no solution, and the Tree Tent puzzles here are generated. LEGUP's Short Truth Table files do not say which statement is the conclusion, so only one was adapted by hand.
 

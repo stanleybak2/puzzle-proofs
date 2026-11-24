@@ -43,15 +43,16 @@
       const num = id => rows[Math.floor(id / w)][id % w], vOf = new Array(g.n).fill(-1), cells = [];
       for (let id = 0; id < g.n; id++) if (!num(id)) { vOf[id] = cells.length; cells.push(id); }
       const st = (id, f) => { if (num(id)) return 'W'; const x = f.get(vOf[id]); return !x ? '?' : x.val ? 'B' : 'W'; };
-      const islands = memo(f => {
-        const s = Array.from({ length: g.n }, (_, id) => st(id, f)), out = { broken: false, forced: [] }, add = (id, val) => out.forced.push([vOf[id], val]);
+      // Everything the island rule can see in one look at a board s (an array of 'W', 'B', '?').
+      const scan = s => {
+        const out = { broken: false, forced: [] }, add = (id, val) => out.forced.push([vOf[id], val]), bad = { broken: true, forced: [] };
         const { comp, groups } = LG.components(g, id => s[id] === 'W');
         const info = groups.map(grp => { const nums = grp.filter(num); return { grp, nums, n: nums.length === 1 ? num(nums[0]) : 0, libs: [...new Set(grp.flatMap(x => g.nb4(x)).filter(y => s[y] === '?'))] }; });
         for (const c of info) {
-          if (c.nums.length > 1 || (c.n && c.grp.length > c.n)) return { broken: true, forced: [] };
+          if (c.nums.length > 1 || (c.n && c.grp.length > c.n)) return bad;
           const full = c.n && c.grp.length === c.n;
           if (full) c.libs.forEach(y => add(y, 1));
-          else if (!c.libs.length) return { broken: true, forced: [] };
+          else if (!c.libs.length) return bad;
           else if (c.libs.length === 1) add(c.libs[0], 0);
         }
         // A cell that would join two numbers, or make an island too big, is black.
@@ -63,41 +64,40 @@
         }
         // What each numbered island could still take in. An undecided cell costs 1 of the island's
         // remaining size. Joining a white group that has no number costs that group's whole size.
-        // `blocked` is a cell treated as black, to ask "what if this cell were black?".
-        const reachAll = blocked => {
-          const reach = new Set(); let short = false;
-          info.forEach((c, ci) => {
-            if (!c.n) return;
-            const budget = c.n - c.grp.length, cost = new Map(), q = c.grp.slice();
-            c.grp.forEach(x => cost.set(x, 0));
-            while (q.length) {
-              const x = q.shift(), cx = cost.get(x);
-              for (const y of g.nb4(x)) {
-                if (y === blocked || s[y] === 'B' || (s[y] === 'W' && info[comp[y]].n)) continue;
-                if (g.nb4(y).some(z => s[z] === 'W' && comp[z] !== ci && info[comp[z]].n)) continue;   // would join another number
-                const ny = cx + (s[y] === '?' ? 1 : s[x] === 'W' && comp[x] === comp[y] ? 0 : info[comp[y]].grp.length);
-                if (ny <= budget && (!cost.has(y) || ny < cost.get(y))) { cost.set(y, ny); q.push(y); }
-              }
+        const reach = new Set();
+        for (let ci = 0; ci < info.length; ci++) {
+          const c = info[ci]; if (!c.n) continue;
+          const budget = c.n - c.grp.length, cost = new Map(), q = c.grp.slice();
+          c.grp.forEach(x => cost.set(x, 0));
+          while (q.length) {
+            const x = q.shift(), cx = cost.get(x);
+            for (const y of g.nb4(x)) {
+              if (s[y] === 'B' || (s[y] === 'W' && info[comp[y]].n)) continue;
+              if (g.nb4(y).some(z => s[z] === 'W' && comp[z] !== ci && info[comp[z]].n)) continue;   // would join another number
+              const ny = cx + (s[y] === '?' ? 1 : s[x] === 'W' && comp[x] === comp[y] ? 0 : info[comp[y]].grp.length);
+              if (ny <= budget && (!cost.has(y) || ny < cost.get(y))) { cost.set(y, ny); q.push(y); }
             }
-            if (cost.size < c.n) short = true;      // not enough room left to reach its size
-            cost.forEach((_, x) => reach.add(x));
-          });
-          return { reach, short };
-        };
-        const R = reachAll(-1);
-        if (R.short) return { broken: true, forced: [] };
-        // A cell no numbered island can reach is black.
-        for (let id = 0; id < g.n; id++) {
-          if (R.reach.has(id)) continue;
-          if (s[id] === '?') add(id, 1); else if (s[id] === 'W') return { broken: true, forced: [] };
+          }
+          if (cost.size < c.n) return bad;       // not enough room left to reach its size
+          cost.forEach((_, x) => reach.add(x));
         }
-        // A cell is white if making it black would leave an island short of its size, or would cut a
-        // numberless white group off from every number. This is the "only one path" argument.
-        const lonely = info.filter(c => !c.n);
+        // A cell no numbered island can reach is black. A white cell out of reach breaks the rule.
         for (let id = 0; id < g.n; id++) {
-          if (s[id] !== '?' || !R.reach.has(id)) continue;
-          const r2 = reachAll(id);
-          if (r2.short || lonely.some(c => !r2.reach.has(c.grp[0]))) add(id, 0);
+          if (reach.has(id)) continue;
+          if (s[id] === '?') add(id, 1); else if (s[id] === 'W') return bad;
+        }
+        return out;
+      };
+      // The rule also looks one colour ahead: if making a cell white breaks the rule at once, the cell is
+      // black, and the other way round. This covers "only one path" and "that would wall the 7 in".
+      const islands = memo(f => {
+        const s = Array.from({ length: g.n }, (_, id) => st(id, f)), out = scan(s);
+        if (out.broken) return out;
+        const have = new Set(out.forced.map(m => m[0]));
+        for (let id = 0; id < g.n; id++) {
+          if (s[id] !== '?' || have.has(vOf[id])) continue;
+          s[id] = 'W'; const w = scan(s).broken; s[id] = 'B'; const k = !w && scan(s).broken; s[id] = '?';
+          if (w) out.forced.push([vOf[id], 1]); else if (k) out.forced.push([vOf[id], 0]);
         }
         return out;
       });
