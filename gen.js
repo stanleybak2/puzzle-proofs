@@ -1,5 +1,5 @@
-// Puzzle generators, run in the browser from dev.html. They make the puzzles for
-// games LEGUP has no usable sample files for, and the small demo puzzles.
+// Puzzle generators. The "New puzzle" screen uses LG.generate. dev.html uses
+// LG.make and LG.makeDemo to build the stock puzzle file and the demo puzzles.
 // Every result is checked with the solver: exactly one solution.
 (function () {
   'use strict';
@@ -155,6 +155,34 @@
     const n = o.n, g = LG.grid(n, n), k = (o.pearls || 3) + Math.floor(r() * 2), at = new Map();
     for (let i = 0; i < k; i++) at.set(Math.floor(r() * g.n), r() < 0.5 ? 'W' : 'B');
     return { grid: chars(g, id => at.get(id) || '.') };
+  };
+
+  // Sizes offered per game, and the options each generator needs for a size.
+  LG.genSizes = { lightup: [5, 7, 10], sudoku: [4, 6, 9], binary: [4, 6, 8], fillapix: [5, 7, 10], minesweeper: [5, 6, 8], starbattle: [5, 6, 7],
+    thermometer: [4, 5, 6], skyscrapers: [3, 4, 5], treetent: [5, 6, 8], battleship: [5, 6, 7], nurikabe: [4, 5], heyawake: [5, 6], masyu: [4, 5, 6] };
+  const FLEETS = { 5: [3, 2, 1, 1], 6: [3, 2, 2, 1, 1, 1], 7: [4, 3, 2, 2, 1, 1, 1], 8: [4, 3, 3, 2, 2, 2, 1, 1, 1] };
+  const optsFor = (id, n) => (id === 'battleship' ? { n, fleet: FLEETS[n] || FLEETS[6], maxGiven: 6 } : id === 'nurikabe' ? { n, islands: n >= 5 ? 3 : 2 } : id === 'masyu' ? { n, pearls: n } : { n });
+  const wants = { direct: k => k === 0, some: k => k >= 1 && k <= 2, many: k => k >= 3, any: () => true };
+  // One new board of size n. `want` is 'direct' (no assumptions), 'some' (1 or 2), 'many' (3 or more) or 'any'.
+  // Stops after `ms` milliseconds and then returns the closest board found, marked timedOut.
+  LG.generate = function (id, n, want, ms) {
+    const end = performance.now() + (ms || 6000), fits = wants[want] || wants.any; let tries = 0, seed = Math.floor(Math.random() * 1e9), near = null;
+    if (!GEN[id]) return { error: 'This game has no generator.' };
+    while (performance.now() < end) {
+      tries++; seed++;
+      let def = null;
+      LG.deadline = end;
+      try { def = GEN[id](rng(seed), Object.assign(optsFor(id, n), { direct: want === 'direct' })); } catch (e) { def = null; }
+      LG.deadline = 0;
+      if (!def) continue;
+      const r = LG.rate(id, def, Math.max(150, end - performance.now()));
+      if (r.timedOut) break;
+      if (!r.ok || !r.solved) continue;
+      def.id = 'gen-' + seed; def.level = r.assumptions ? 'assume' : 'direct';
+      if (fits(r.assumptions)) return { def, rating: r, tries };
+      if (!near || Math.abs(r.assumptions - (want === 'many' ? 3 : 1)) < Math.abs(near.rating.assumptions - (want === 'many' ? 3 : 1))) near = { def, rating: r };
+    }
+    return Object.assign({ tries, timedOut: true }, near || {});
   };
 
   // Try seeds until `count` good puzzles are found. `want` is 'direct', 'assume', or 'any'.

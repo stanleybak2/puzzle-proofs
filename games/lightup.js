@@ -35,11 +35,14 @@
         B.anchor('c' + id, { text: g.cn(id) + ' must be lit', rule: g.cn(id) + ' must be lit, so at least one outlined cell is a bulb.', cells: sc, count: 'cells', at: { t: 'cell', id }, kind: 'lit', brokenText: 'nothing can light ' + g.cn(id) })
           .cons.push(B.lin(sc.map(x => vOf[x]), 1, 99));
       }
-      for (const s of segs.values()) B.lin(s.map(x => vOf[x]), 0, 1, { auto: 'hi' });
+      const shine = {};
+      for (const s of segs.values()) { const i = B.lin(s.map(x => vOf[x]), 0, 1, { auto: 'hi' }); s.forEach(c => (shine[c] = shine[c] || []).push(i)); }
+      for (const id of cells) if (shine[id])
+        B.anchor('b' + id, { text: 'no bulb shines on another (the bulb at ' + g.cn(id) + ')', rule: 'No bulb may shine on another bulb, so the outlined cells this bulb lights are empty.', cells: vis[id], at: { t: 'cell', id }, kind: 'shine', info: true }).cons.push(...shine[id]);
       let lit = new Set();
       return {
         nvars: cells.length, cons: B.cons, anchor: k => B.anchors[k], anchorKeys: B.anchorKeys, tools: ['Bulb', 'Empty'],
-        howToCite: 'Click a clue to cite it as your reason: a number, or any white cell (it must be lit).',
+        howToCite: 'Click a clue to cite it as your reason: a number, or any white cell (it must be lit). Click a bulb to see why the cells it lights are empty.',
         name: (v, val) => ({ who: g.cn(cells[v]), one: val ? 'is a bulb' : 'is empty', many: val ? 'are bulbs' : 'are empty' }),
         cellOf: v => cells[v],
         anchorsAt(t, f) {
@@ -47,7 +50,7 @@
           if (num(t.id) !== null) return ['c' + t.id];
           if (!isW(t.id)) return [];
           const x = f.get(vOf[t.id]);
-          return x && x.val ? [] : ['c' + t.id];
+          return x && x.val ? (B.anchors['b' + t.id] ? ['b' + t.id] : []) : ['c' + t.id];
         },
         noAnchor: t => (t.t === 'cell' && isW(t.id) ? 'A bulb already rules out every cell it shines on, so there is nothing to cite here.' : 'A wall without a number has no rule to cite.'),
         markOf: (t, tool) => (t.t === 'cell' && isW(t.id) ? { v: vOf[t.id], val: tool === 0 ? 1 : 0 } : null),

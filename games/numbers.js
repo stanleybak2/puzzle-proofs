@@ -49,8 +49,8 @@
       const givens = [];
       for (let id = 0; id < g.n; id++) { const ch = def.grid[Math.floor(id / n)][id % n]; if (ch >= '1' && ch <= '9') givens.push([X(id, +ch - 1), 1]); }
       return common(n, g, B, X, {
-        givens, howToCite: 'Click a cell, a row number or a column letter. Click a cell again to move on to its box, row and column.',
-        anchorsAt(t) { if (t.t === 'cell') { const r = Math.floor(t.id / n), c = t.id % n; return ['c' + t.id, 'b' + box(t.id), 'r' + r, 'k' + c]; } return t.t === 'row' ? ['r' + t.i] : t.t === 'col' ? ['k' + t.i] : []; },
+        givens, howToCite: 'Click a cell for the cell rule, and click it again for its box. Click a row number or a column letter to cite that row or column.',
+        anchorsAt(t) { if (t.t === 'cell') { const r = Math.floor(t.id / n), c = t.id % n; return ['c' + t.id, 'b' + box(t.id)]; } return t.t === 'row' ? ['r' + t.i] : t.t === 'col' ? ['k' + t.i] : []; },
         view: { w: n, h: n, regions: Array.from({ length: g.n }, (_, id) => box(id)), cell: cellView(n, X) },
       });
     },
@@ -100,8 +100,8 @@
       const givens = (def.given || []).map(([v, x, y]) => [X(g.id(y, x), v - 1), 1]);
       const cl = {}; for (const side of ['n', 's', 'e', 'w']) if ((def.clues[side] || []).some(k => k != null && k > 0)) cl[side] = def.clues[side].map(k => (k != null && k > 0 ? k : null));
       return common(n, g, B, X, {
-        givens, howToCite: 'Click a number outside the grid, a cell, a row number or a column letter.',
-        anchorsAt(t) { if (t.t === 'cell') { const r = Math.floor(t.id / n), c = t.id % n; return ['c' + t.id, 'r' + r, 'k' + c]; } if (t.t === 'clue') return B.anchors[t.side + t.i] ? [t.side + t.i] : []; return t.t === 'row' ? ['r' + t.i] : t.t === 'col' ? ['k' + t.i] : []; },
+        givens, howToCite: 'Click a number outside the grid for its view rule. Click a cell for the cell rule. Click a row number or a column letter to cite that row or column.',
+        anchorsAt(t) { if (t.t === 'cell') { const r = Math.floor(t.id / n), c = t.id % n; return ['c' + t.id]; } if (t.t === 'clue') return B.anchors[t.side + t.i] ? [t.side + t.i] : []; return t.t === 'row' ? ['r' + t.i] : t.t === 'col' ? ['k' + t.i] : []; },
         view: { w: n, h: n, clues: cl, cell: cellView(n, X) },
       });
     },

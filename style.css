@@ -51,12 +51,15 @@ main { display: grid; grid-template-columns: min-content minmax(0, 1fr); gap: 20
 #marks button.digit { min-width: 30px; padding: 5px 0; }
 #marks .note { flex-basis: 100%; }
 
-#board { user-select: none; width: max-content; max-width: 100%; touch-action: none; }
-#board svg { display: block; }
-#board text { font-family: system-ui, sans-serif; fill: var(--ink); }
+#board, #mk-board { user-select: none; width: max-content; max-width: 100%; touch-action: none; }
+#board svg, #mk-board svg { display: block; }
+#board text, #mk-board text { font-family: system-ui, sans-serif; fill: var(--ink); }
 .lab { fill: var(--muted) !important; font-size: 12px; }
 .lab.click, .clue { cursor: pointer; }
 .clue { font-weight: 600; }
+/* One colour per level of nesting, repeating after four levels. */
+.d1 { --hyp: #7f57d6; } .d2 { --hyp: #0b8a74; } .d3 { --hyp: #c2620a; } .d4 { --hyp: #c2318b; }
+@media (prefers-color-scheme: dark) { .d1 { --hyp: #b39cf0; } .d2 { --hyp: #5fd3bd; } .d3 { --hyp: #f0a35a; } .d4 { --hyp: #f08cc8; } }
 .c-bg { fill: var(--cell); stroke: var(--line); stroke-width: 1; }
 .c-bg.wall, .c-bg.black { fill: var(--wall); }
 .c-bg.unknown { fill: var(--unknown); }
@@ -88,7 +91,7 @@ text.cand { fill: var(--muted) !important; }
 .link { stroke: var(--tent); stroke-width: 4; stroke-linecap: round; pointer-events: none; }
 .drag-line { stroke: var(--scope); stroke-width: 3; stroke-dasharray: 4 4; pointer-events: none; }
 
-#hint, #demo { margin-top: 12px; padding: 10px 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
+#hint, #demo, #mk-result { margin-top: 12px; padding: 10px 12px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
 #demo { border: 2px solid var(--anchor); }
 #demo-count { color: var(--muted); font-size: 13px; margin-bottom: 4px; }
 #demo-text ul { margin: 6px 0 0; padding-left: 20px; }
@@ -114,8 +117,13 @@ text.cand { fill: var(--muted) !important; }
 .box.shut > .head { color: var(--err); }
 .bot { color: var(--err); padding: 2px 4px; font-weight: 600; }
 .caseshead { color: var(--muted); padding: 4px 4px 0; font-style: italic; }
-.branches { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-start; }
-.branches > .box { flex: 1 1 200px; margin-left: 8px; }
+/* Cases sit side by side as columns of equal width, never stacked. With many cases the row scrolls sideways. */
+.branches { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(132px, 1fr); gap: 8px; align-items: start; overflow-x: auto; padding-bottom: 2px; }
+.branches > .box { margin: 6px 0; min-width: 0; }
+.branches .ln { flex-wrap: wrap; column-gap: 6px; }
+.branches .ln .n { min-width: 1.4em; }
+.branches .ln > span:nth-child(2) { flex: 1 1 0; min-width: 0; }
+.branches .ln .why { flex-basis: 100%; margin-left: 0; padding-left: 1.9em; text-align: left; font-size: 13px; }
 .empty { color: var(--muted); padding: 2px 4px; }
 details { margin-top: 14px; color: var(--muted); }
 details summary { cursor: pointer; color: var(--ink); font-weight: 600; }
@@ -138,3 +146,16 @@ kbd { border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; font: i
   #win.show h2 { animation: pop .6s cubic-bezier(.2, 1.8, .4, 1); }
   @keyframes pop { from { transform: scale(.5); opacity: 0; } to { transform: scale(1); opacity: 1; } }
 }
+
+/* New puzzle screen */
+#mk-tools button { padding: 4px 8px; }
+#mk-fields label { display: block; margin: 0 0 10px; color: var(--muted); font-size: 13px; max-width: 420px; }
+#mk-fields input, #mk-fields textarea, #mk-text { display: block; width: 100%; margin-top: 4px; padding: 6px 8px; font: 14px/1.4 ui-monospace, monospace; color: var(--ink); background: var(--panel); border: 1px solid var(--line); border-radius: 6px; }
+#mk-fields textarea { min-height: 110px; }
+#mk-text { min-height: 150px; }
+#mk-note { margin-top: 10px; color: var(--muted); max-width: 460px; }
+#mk-result { margin-top: 0; }
+#mk-result .bad { color: var(--err); } #mk-result .good { color: var(--ok); font-weight: 600; }
+#make details p { margin: 6px 0; }
+#make .left { min-width: 380px; }
+#mk-start { gap: 8px 14px; }

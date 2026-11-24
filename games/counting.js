@@ -113,11 +113,11 @@
         B.anchor('uk' + c, { text: 'columns differ (column ' + L + ')', rule: 'No two columns are the same.', cells: g.col(c), at: { t: 'col', i: c }, kind: 'differ', brokenText: 'two columns are the same' }).cons.push(dc);
       }
       return base(B, {
-        nvars: g.n, givens, tools: ['1', '0'], howToCite: 'Click a cell for the no-three rule, or a row number or column letter for the balance rule.',
+        nvars: g.n, givens, tools: ['1', '0'], howToCite: 'Click a cell for the no-three rule. Click a row number or a column letter for the balance rule.',
         name: (v, val) => ({ who: g.cn(v), one: 'is ' + val, many: 'are ' + val }),
         cellOf: v => v,
         anchorsAt(t) {
-          if (t.t === 'cell') { const [r, c] = g.rc(t.id); return ['t' + t.id, 'r' + r, 'k' + c]; }
+          if (t.t === 'cell') { const [r, c] = g.rc(t.id); return ['t' + t.id]; }
           return t.t === 'row' ? ['r' + t.i, 'ur' + t.i] : t.t === 'col' ? ['k' + t.i, 'uk' + t.i] : [];
         },
         markOf: (t, tool) => (t.t === 'cell' ? { v: t.id, val: tool === 0 ? 1 : 0 } : null),
@@ -143,13 +143,15 @@
         B.anchor('g' + k, { text: 'the region at ' + g.cn(cells[0]), rule: 'This region holds ' + need + '.', cells, count: 'cells', kind: 'region' }).cons.push(B.lin(cells, n, n));
       for (let r = 0; r < h; r++) B.anchor('r' + r, { text: 'row ' + (r + 1), rule: 'Row ' + (r + 1) + ' holds ' + need + '.', cells: g.row(r), count: 'cells', at: { t: 'row', i: r }, kind: 'row' }).cons.push(B.lin(g.row(r), n, n));
       for (let c = 0; c < w; c++) { const L = String.fromCharCode(65 + c); B.anchor('k' + c, { text: 'column ' + L, rule: 'Column ' + L + ' holds ' + need + '.', cells: g.col(c), count: 'cells', at: { t: 'col', i: c }, kind: 'column' }).cons.push(B.lin(g.col(c), n, n)); }
-      for (let id = 0; id < g.n; id++) for (const y of g.nb8(id)) if (y > id) B.lin([id, y], 0, 1, { auto: 'hi' });
+      const touch = {};
+      for (let id = 0; id < g.n; id++) for (const y of g.nb8(id)) if (y > id) B.apart(id, y, id, y, touch);
+      for (let id = 0; id < g.n; id++) B.anchor('n' + id, { text: 'stars may not touch (the star at ' + g.cn(id) + ')', rule: 'Stars may not touch, not even diagonally, so the outlined cells around this star are empty.', cells: g.nb8(id), at: { t: 'cell', id }, kind: 'touch', info: true }).cons.push(...touch[id]);
       return base(B, {
-        nvars: g.n, tools: ['Star', 'Empty'], howToCite: 'Click a cell to cite its region, or a row number or column letter.',
+        nvars: g.n, tools: ['Star', 'Empty'], howToCite: 'Click a cell to cite its region. Click a row number or a column letter to cite that row or column. Click a star to see why the cells around it are empty.',
         name: (v, val) => ({ who: g.cn(v), one: val ? 'is a star' : 'is empty', many: val ? 'are stars' : 'are empty' }),
         cellOf: v => v,
-        anchorsAt(t) {
-          if (t.t === 'cell') { const [r, c] = g.rc(t.id); return ['g' + ch(t.id), 'r' + r, 'k' + c]; }
+        anchorsAt(t, f) {
+          if (t.t === 'cell') { const [r, c] = g.rc(t.id), x = f && f.get(t.id); return (x && x.val ? ['n' + t.id] : []).concat(['g' + ch(t.id)]); }
           return t.t === 'row' ? ['r' + t.i] : t.t === 'col' ? ['k' + t.i] : [];
         },
         markOf: (t, tool) => (t.t === 'cell' ? { v: t.id, val: tool === 0 ? 1 : 0 } : null),

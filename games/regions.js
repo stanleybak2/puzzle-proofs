@@ -61,28 +61,43 @@
           const numbered = near.filter(c => c.n);
           if (numbered.length > 1 || (numbered.length === 1 && 1 + near.reduce((a, c) => a + c.grp.length, 0) > numbered[0].n)) add(id, 1);
         }
-        // A cell no numbered island can reach is black.
-        const reach = new Set();
-        info.forEach((c, ci) => {
-          if (!c.n) return;
-          let frontier = c.grp.slice(); const seen = new Set(c.grp); let count = c.grp.length;
-          for (let d = c.grp.length; d < c.n && frontier.length; d++) {
-            const next = [];
-            for (const x of frontier) for (const y of g.nb4(x)) {
-              if (seen.has(y) || s[y] === 'B') continue;
-              if (s[y] === 'W' && info[comp[y]].n) continue;
-              if (g.nb4(y).some(z => s[z] === 'W' && comp[z] !== ci && info[comp[z]].n)) continue;
-              seen.add(y); next.push(y); count++;
+        // What each numbered island could still take in. An undecided cell costs 1 of the island's
+        // remaining size. Joining a white group that has no number costs that group's whole size.
+        // `blocked` is a cell treated as black, to ask "what if this cell were black?".
+        const reachAll = blocked => {
+          const reach = new Set(); let short = false;
+          info.forEach((c, ci) => {
+            if (!c.n) return;
+            const budget = c.n - c.grp.length, cost = new Map(), q = c.grp.slice();
+            c.grp.forEach(x => cost.set(x, 0));
+            while (q.length) {
+              const x = q.shift(), cx = cost.get(x);
+              for (const y of g.nb4(x)) {
+                if (y === blocked || s[y] === 'B' || (s[y] === 'W' && info[comp[y]].n)) continue;
+                if (g.nb4(y).some(z => s[z] === 'W' && comp[z] !== ci && info[comp[z]].n)) continue;   // would join another number
+                const ny = cx + (s[y] === '?' ? 1 : s[x] === 'W' && comp[x] === comp[y] ? 0 : info[comp[y]].grp.length);
+                if (ny <= budget && (!cost.has(y) || ny < cost.get(y))) { cost.set(y, ny); q.push(y); }
+              }
             }
-            frontier = next;
-          }
-          if (count < c.n) out.broken = true;
-          seen.forEach(x => reach.add(x));
-        });
-        if (out.broken) return { broken: true, forced: [] };
+            if (cost.size < c.n) short = true;      // not enough room left to reach its size
+            cost.forEach((_, x) => reach.add(x));
+          });
+          return { reach, short };
+        };
+        const R = reachAll(-1);
+        if (R.short) return { broken: true, forced: [] };
+        // A cell no numbered island can reach is black.
         for (let id = 0; id < g.n; id++) {
-          if (reach.has(id)) continue;
+          if (R.reach.has(id)) continue;
           if (s[id] === '?') add(id, 1); else if (s[id] === 'W') return { broken: true, forced: [] };
+        }
+        // A cell is white if making it black would leave an island short of its size, or would cut a
+        // numberless white group off from every number. This is the "only one path" argument.
+        const lonely = info.filter(c => !c.n);
+        for (let id = 0; id < g.n; id++) {
+          if (s[id] !== '?' || !R.reach.has(id)) continue;
+          const r2 = reachAll(id);
+          if (r2.short || lonely.some(c => !r2.reach.has(c.grp[0]))) add(id, 0);
         }
         return out;
       });
@@ -102,7 +117,7 @@
       }
       return base(B, {
         nvars: cells.length, tools: ['Black', 'White'],
-        howToCite: 'Click a number for the island rule. Click any other cell to step through the island rule, the connection rule and the 2 by 2 rule.',
+        howToCite: 'Click a number or a white cell for the island rule. Click a black cell for the two rules about black cells: they all connect, and no 2 by 2 block is all black.',
         name: (v, val) => ({ who: g.cn(cells[v]), one: val ? 'is black' : 'is white', many: val ? 'are black' : 'are white' }),
         cellOf: v => cells[v],
         check(f) {
@@ -110,7 +125,13 @@
           if (LG.components(g, id => s[id] === 'B').groups.length > 1) return false;
           return LG.components(g, id => s[id] === 'W').groups.every(grp => { const nums = grp.filter(num); return nums.length === 1 && num(nums[0]) === grp.length; });
         },
-        anchorsAt: t => (t.t !== 'cell' ? [] : num(t.id) ? ['isl'] : ['isl', 'conn'].concat(blocks[t.id].length ? ['q' + t.id] : [])),
+        // The island rule is cited from a white cell, the two rules about black cells from a black cell.
+        anchorsAt(t, f) {
+          if (t.t !== 'cell') return [];
+          const s = st(t.id, f);
+          return s === 'W' ? ['isl'] : s === 'B' ? ['conn'].concat(blocks[t.id].length ? ['q' + t.id] : []) : [];
+        },
+        noAnchor: () => 'An undecided cell has no rule yet. Click a number or a white cell for the island rule, or a black cell for the rules about black cells.',
         markOf: (t, tool) => (t.t === 'cell' && vOf[t.id] >= 0 ? { v: vOf[t.id], val: tool === 0 ? 1 : 0 } : null),
         view: { w, h, cell(id, f) { if (num(id)) return { text: num(id), textCls: 'given' }; const x = f.get(vOf[id]); return !x ? { bg: 'unknown' } : x.val ? { bg: 'black', src: x } : { icon: 'dot', src: x }; } },
       });
@@ -151,14 +172,25 @@
       }
       const st = (id, f) => { const x = f.get(id); return !x ? '?' : x.val ? 'out' : 'in'; };
       B.anchor('conn', { text: 'the white cells connect', rule: 'All white cells form one connected area.', kind: 'connect', brokenText: 'the white cells are cut apart' }).cons.push(B.con(connectRule(g, st, id => id, 0)));
-      for (let id = 0; id < g.n; id++) for (const y of g.nb4(id)) if (y > id) B.lin([id, y], 0, 1, { auto: 'hi' });
+      const touch = {};
+      for (let id = 0; id < g.n; id++) for (const y of g.nb4(id)) if (y > id) B.apart(id, y, id, y, touch);
+      for (let id = 0; id < g.n; id++) B.anchor('n' + id, { text: 'black cells may not share a side (the black cell at ' + g.cn(id) + ')', rule: 'Black cells may not share a side, so the outlined cells beside this one are white.', cells: g.nb4(id), at: { t: 'cell', id }, kind: 'touch', info: true }).cons.push(...touch[id]);
       return base(B, {
         nvars: g.n, tools: ['Black', 'White'],
-        howToCite: 'Click a cell to step through its rules: the room number, the white line rule and the connection rule.',
+        howToCite: 'Click a cell for its room number. Click it again for the white line rule, and on a white cell once more for the connection rule.',
         name: (v, val) => ({ who: g.cn(v), one: val ? 'is black' : 'is white', many: val ? 'are black' : 'are white' }),
         cellOf: v => v,
         check: f => LG.components(g, id => !f.get(id).val).groups.length <= 1,
-        anchorsAt(t) { if (t.t !== 'cell') return []; const k = []; if (B.anchors['g' + room(t.id)]) k.push('g' + room(t.id)); if (wins[t.id].length) k.push('l' + t.id); k.push('conn'); return k; },
+        // Every cell gives its room number. The rules about white cells are cited from a cell that is not black.
+        anchorsAt(t, f) {
+          if (t.t !== 'cell') return [];
+          const k = [], x = f && f.get(t.id), black = x && x.val, white = x && !x.val;
+          if (black) k.push('n' + t.id);
+          if (B.anchors['g' + room(t.id)]) k.push('g' + room(t.id));
+          if (!black && wins[t.id].length) k.push('l' + t.id);
+          if (white) k.push('conn');
+          return k;
+        },
         markOf: (t, tool) => (t.t === 'cell' ? { v: t.id, val: tool === 0 ? 1 : 0 } : null),
         view: { w, h, regions: Array.from({ length: g.n }, (_, id) => room(id)), cell(id, f) { const x = f.get(id), t = labelAt[id]; return !x ? { bg: 'unknown', text: t, small: true } : x.val ? { bg: 'black', text: t, small: true, textCls: 'walltext', src: x } : { text: t, small: true, src: x }; } },
       });
@@ -206,15 +238,18 @@
       });
       B.anchor('fleet', { text: 'the fleet', rule: 'The ships are ' + fleetText(fleet) + '. Each is a straight line, and no two touch.', kind: 'fleet', brokenText: 'the ships no longer match the fleet' })
         .cons.push(B.con({ k: 'fn', vars: null, broken: f => scan(f).broken, forced: f => scan(f).forced }));
-      for (let r = 0; r + 1 < h; r++) for (let c = 0; c < w; c++) for (const dc of [-1, 1]) if (c + dc >= 0 && c + dc < w) B.lin([g.id(r, c), g.id(r + 1, c + dc)], 0, 1, { auto: 'hi' });
+      const touch = {};
+      for (let r = 0; r + 1 < h; r++) for (let c = 0; c < w; c++) for (const dc of [-1, 1]) if (c + dc >= 0 && c + dc < w) B.apart(g.id(r, c), g.id(r + 1, c + dc), g.id(r, c), g.id(r + 1, c + dc), touch);
+      const diag = id => g.nb8(id).filter(y => !g.nb4(id).includes(y));
+      for (let id = 0; id < g.n; id++) if (touch[id]) B.anchor('n' + id, { text: 'ships may not touch diagonally (the ship cell at ' + g.cn(id) + ')', rule: 'Ships may not touch, not even diagonally, so the outlined cells diagonal to this ship cell are water.', cells: diag(id), at: { t: 'cell', id }, kind: 'touch', info: true }).cons.push(...touch[id]);
       return base(B, {
         nvars: g.n, givens: def.given || [], tools: ['Ship', 'Water'],
-        howToCite: 'Fleet: ' + fleetText(fleet) + '. Click a row or column count. Click a cell for the fleet rule.',
+        howToCite: 'Fleet: ' + fleetText(fleet) + '. Click the number beside a row or below a column for its count. Click a cell for the fleet rule.',
         name: (v, val) => ({ who: g.cn(v), one: val ? 'is ship' : 'is water', many: val ? 'are ship' : 'are water' }),
         cellOf: v => v,
         check(f) { const lens = LG.components(g, id => f.get(id).val === 1).groups.map(x => x.length).sort((a, b) => b - a); return lens.length === fleet.length && lens.every((n, i) => n === fleet[i]); },
-        anchorsAt(t) {
-          if (t.t === 'cell') { const [r, c] = g.rc(t.id); return ['fleet', 'r' + r, 'k' + c]; }
+        anchorsAt(t, f) {
+          if (t.t === 'cell') { const [r, c] = g.rc(t.id), x = f && f.get(t.id); return (x && x.val && B.anchors['n' + t.id] ? ['n' + t.id] : []).concat(['fleet']); }
           if (t.t === 'clue') return [(t.side === 'e' ? 'r' : 'k') + t.i];
           return t.t === 'row' ? ['r' + t.i] : t.t === 'col' ? ['k' + t.i] : [];
         },

@@ -9,13 +9,14 @@
   for (const id of LG.order) {
     const game = LG.games[id], defs = LG.puzzles[id] || [];
     check(id + ': has puzzles and rules', defs.length > 0 && game.rules.length > 0, defs.length + ' puzzles');
+    check(id + ': puzzle ids are unique', new Set(defs.map(d => d.id)).size === defs.length);
     let unique = 0, botOk = 0, agree = 0, levelOk = 0, tried = 0, accepted = 0, wrong = 0; const bad = [];
     for (const def of defs) {
       let G, s;
       try { G = game.create(def); s = LG.solve(G, 2, 40000); } catch (e) { bad.push(def.title + ': ' + e.message); continue; }
       const okCount = G.rootContradiction ? s.count <= 1 : s.count === 1;
       if (okCount && !s.gaveUp) unique++; else bad.push(def.title + ': ' + s.count + ' solutions');
-      const pr = new LG.Proof(G), b = LG.botSolve(G, pr, 8);
+      const pr = new LG.Proof(G), b = LG.botSolve(G, pr, 12);
       if (b.ok) botOk++; else bad.push(def.title + ': bot stuck');
       if ((def.level === 'direct') === (b.assumptions === 0)) levelOk++;
       const f = pr.facts();
@@ -96,6 +97,44 @@
     const G = LG.games.treetent.create(LG.games.treetent.demo), P = LG.plan(G), f = P.proof.facts();
     let links = 0; for (const [v, x] of f) if (x.val && G.name(v, 1).one.indexOf('pair') >= 0) links++;
     check('tree tent: drag gives link attempts', !!G.drag && links >= 0);
+  }
+
+  // Rating, time limits, generators and editors.
+  {
+    const r1 = LG.rate('lightup', LG.puzzles.lightup[0], 3000);
+    check('rate: a stock puzzle has one solution and is rated easy', r1.ok && r1.solutions === 1 && r1.level === 'direct' && r1.lines > 0);
+    const r2 = LG.rate('lightup', { grid: ['....', '....', '....', '....'] }, 3000);
+    check('rate: an empty Light Up board has more than one solution', !r2.ok && r2.solutions === 2);
+    const r3 = LG.rate('sudoku', { grid: ['11..', '....', '....', '....'] }, 3000);
+    check('rate: a contradictory board has no solution', !r3.ok && r3.solutions === 0);
+    const big = { grid: Array.from({ length: 9 }, () => '.........') }, t0 = performance.now(), r4 = LG.rate('sudoku', big, 60), took = performance.now() - t0;
+    check('rate: a search that runs too long stops at its time limit', (r4.timedOut || !r4.ok) && took < 1500, Math.round(took) + ' ms, timedOut ' + !!r4.timedOut);
+    check('rate: the time limit is cleared afterwards', LG.deadline === 0);
+    const r5 = LG.rate('lightup', { grid: 5 }, 500);
+    check('rate: a malformed board is reported, not thrown', !r5.ok);
+    for (const id of LG.order) {
+      const ed = LG.editors[id];
+      if (!ed) { check(id + ': has an editor', false); continue; }
+      let ok = true, why = '';
+      try {
+        for (const n of ed.sizes || [0]) {
+          const def = ed.blank(n), G = LG.games[id].create(def), tools = ed.tools(def);
+          for (const tool of tools) { ed.apply(def, { t: 'cell', id: 0 }, tool); ed.apply(def, { t: 'clue', side: 'e', i: 0 }, tool); ed.apply(def, { t: 'clue', side: 'n', i: 0 }, tool); LG.games[id].create(def); }
+          if (ed.drag) ed.drag(def, 1, Math.min(2, G.view.w - 1), tools[0]);
+          (ed.fields || []).forEach(fd => { fd.set(def, fd.get(def)); });
+          LG.rate(id, def, 300);
+        }
+      } catch (e) { ok = false; why = e.message; }
+      check(id + ': the editor makes blank boards and every tool works', ok, why);
+      // A stock puzzle copied into the editor must still check out.
+      const copy = JSON.parse(JSON.stringify(LG.puzzles[id][0])), rc = LG.rate(id, copy, 3000);
+      check(id + ': a copied stock puzzle passes the check', rc.ok, JSON.stringify(rc));
+      if (LG.gen[id]) {
+        const g = LG.generate(id, LG.genSizes[id][0], 'direct', 2500);
+        const good = g.def && !g.timedOut && g.rating.ok && g.rating.assumptions === 0;
+        check(id + ': generates an easy board within the time limit', !!good, g.def ? g.tries + ' tries' : 'none in 2.5 s');
+      } else out.push('INFO ' + id + ': no generator');
+    }
   }
 
   out.unshift(failures ? 'FAILURES: ' + failures : 'ALL PASSED');

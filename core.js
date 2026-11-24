@@ -9,8 +9,10 @@
 // An anchor is a clue the player can click: it names one or more constraints.
 (function (global) {
   'use strict';
-  const LG = global.LG = { games: {}, puzzles: {} };
+  const LG = global.LG = { games: {}, puzzles: {}, deadline: 0 };
   const fail = msg => ({ ok: false, msg });
+  // Long searches call tick(). When LG.deadline is set and has passed, the search stops with a 'timeout' error.
+  const tick = () => { if (LG.deadline && performance.now() > LG.deadline) throw new Error('timeout'); };
 
   // ---------- constraints ----------
   function linState(c, f) {
@@ -78,7 +80,7 @@
   // ---------- solver (used to check puzzles, not shown to the player) ----------
   function propagate(G, f) {
     for (let changed = true; changed;) {
-      changed = false;
+      changed = false; tick();
       for (const c of G.cons) {
         if (broken(c, f)) return false;
         for (const [v, val] of forced(c, f)) if (!f.has(v)) { f.set(v, { val, depth: 0 }); changed = true; }
@@ -313,7 +315,7 @@
   function botDirect(G, pr, onStep) {
     const keys = G.anchorKeys;
     for (let moved = true; moved;) {
-      moved = false;
+      moved = false; tick();
       for (const key of keys) {
         const fs = pr.forcedBy(key);
         if (!fs.length) continue;
@@ -375,6 +377,27 @@
     return rec(baseFacts(G));
   }
 
+  // Check and rate one board within a time limit (milliseconds).
+  // {solutions: 0 | 1 | 2 (meaning more than one), ok, solved, assumptions, lines, level, timedOut, error}
+  function rate(gameId, def, ms) {
+    const out = { ok: false }, t0 = performance.now();
+    LG.deadline = t0 + (ms || 3000);
+    try {
+      const G = LG.games[gameId].create(def), s = solve(G, 2, 1e9);
+      out.solutions = s.count;
+      out.ok = G.rootContradiction ? s.count <= 1 : s.count === 1;
+      if (out.ok) {
+        const pr = new Proof(G), b = botSolve(G, pr, 12);
+        const count = blk => blk.items.reduce((a, it) => a + (it.type === 'step' ? 1 : it.type === 'suppose' ? 2 + count(it.block) : 0), 0);
+        out.solved = b.ok; out.assumptions = b.assumptions; out.lines = count(pr.root);
+        out.level = !b.ok ? 'beyond' : b.assumptions === 0 ? 'direct' : 'assume';
+      }
+    } catch (e) { if (e && e.message === 'timeout') out.timedOut = true; else out.error = String((e && e.message) || e); }
+    LG.deadline = 0;
+    out.ms = Math.round(performance.now() - t0);
+    return out;
+  }
+
   // ---------- helpers shared by game files ----------
   const grid = (w, h) => {
     const g = { w, h, n: w * h };
@@ -404,9 +427,12 @@
     const B = { cons: [], anchors: {}, anchorKeys: [] };
     B.con = c => { B.cons.push(c); return B.cons.length - 1; };
     B.lin = (pos, lo, hi, extra) => B.con(Object.assign({ k: 'lin', pos, lo, hi }, extra || {}));
-    B.anchor = (key, a) => { if (!B.anchors[key]) { B.anchors[key] = Object.assign({ key, cons: [], cells: [] }, a); B.anchorKeys.push(key); } return B.anchors[key]; };
+    // An anchor with info:true only explains a rule the game applies by itself. It is never needed for a step.
+    B.anchor = (key, a) => { if (!B.anchors[key]) { B.anchors[key] = Object.assign({ key, cons: [], cells: [] }, a); if (!a.info) B.anchorKeys.push(key); } return B.anchors[key]; };
+    // Automatic pair rule "these two may not both be set", remembered per cell so a piece can show it.
+    B.apart = (a, b, va, vb, by) => { const i = B.lin([va, vb], 0, 1, { auto: 'hi' }); (by[a] = by[a] || []).push(i); (by[b] = by[b] || []).push(i); };
     return B;
   }
 
-  Object.assign(LG, { Proof, forced, broken, linState, conVars, baseFacts, runAuto, complete, solve, botDirect, botBroken, botSolve, grid, components, builder, needVars, branchVars, propagate, plan, randomSolution });
+  Object.assign(LG, { Proof, forced, broken, linState, conVars, baseFacts, runAuto, complete, solve, botDirect, botBroken, botSolve, grid, components, builder, needVars, branchVars, propagate, plan, randomSolution, rate, tick });
 })(typeof window !== 'undefined' ? window : globalThis);

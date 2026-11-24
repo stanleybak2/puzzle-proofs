@@ -18,27 +18,41 @@ Play it at https://stanleybak2.github.io/puzzle-proofs/
 
 | Game | Puzzles | Source of the puzzles |
 |---|---|---|
-| Light Up | 12 | LEGUP |
-| Sudoku | 12 | LEGUP 9x9, generated 4x4 |
-| Binary | 11 | LEGUP, generated 4x4 |
-| Fillapix | 9 | LEGUP, generated |
-| Minesweeper | 7 | LEGUP, generated |
-| Star Battle | 7 | generated, LEGUP |
+| Light Up | 64 | LEGUP |
+| Sudoku | 31 | LEGUP 9x9, generated 4x4 |
+| Binary | 30 | LEGUP, generated 4x4 |
+| Fillapix | 11 | LEGUP, generated |
+| Minesweeper | 8 | LEGUP, generated |
+| Star Battle | 9 | generated, LEGUP |
 | Thermometer | 11 | generated, one from LEGUP |
-| Skyscrapers | 7 | LEGUP, generated 3x3 |
+| Skyscrapers | 10 | LEGUP, generated 3x3 |
 | Tree Tent | 10 | generated |
 | Battleship | 8 | generated |
-| Nurikabe | 10 | LEGUP |
+| Nurikabe | 29 | LEGUP |
 | Heyawake | 8 | generated |
-| Masyu | 7 | LEGUP |
+| Masyu | 15 | LEGUP |
 | Short Truth Table | 12 | written for this project, one from LEGUP |
 
-Every puzzle was checked by a solver to have exactly one solution. A Short Truth Table puzzle has either one counterexample or none. Many LEGUP sample files failed that check and were left out. LEGUP has no sample files for Battleship and Heyawake. Its Tree Tent files store the row counts twice in place of the column counts, so they have no solution, and the Tree Tent puzzles here are generated.
+That is 256 puzzles. Every one was checked by a solver to have exactly one solution. A Short Truth Table puzzle has either one counterexample or none.
+
+**Which LEGUP boards are included.** Every LEGUP sample board that passes three checks: it has exactly one solution, the checker can rate it, and the check finishes in about a second. Boards left out: those with no solution or several, a few too hard to rate, Fillapix boards too slow to check, and Nurikabe boards larger than 10 by 10, which were not tried. LEGUP has no sample files for Battleship and Heyawake. Its Tree Tent files store the row counts twice in place of the column counts, so they have no solution, and the Tree Tent puzzles here are generated. LEGUP's Short Truth Table files do not say which statement is the conclusion, so only one was adapted by hand.
+
+## Making puzzles
+
+"New puzzle" on any game opens a screen where you can:
+
+- **Generate** a board of a chosen size and difficulty. Easy means direct steps are enough. Medium needs one or two assumptions. Hard needs three or more. Short Truth Table has no generator.
+- **Edit** a board. Start from a blank board, a copy of the puzzle you were playing, or a generated one. Pick a tool and click the board. Thermometers are drawn by dragging from the bulb to the tip.
+- **Check** it. The checker confirms a single solution and rates the difficulty by solving the board with the same actions a player has. It reports the number of assumptions and proof lines.
+- **Save and play.** Only a board with a single solution can be saved. Saved boards are kept in the browser and appear at the end of the puzzle list as "Mine".
+- **Share.** "Puzzle as text" shows the whole board as one line of text that can be copied, and loaded on another computer.
+
+Checks and generation have time limits (6 and 8 seconds). They run in a background worker, so the page stays responsive, and a search that overruns is stopped.
 
 ## Known limits
 
 - **Area rules are not complete.** Nurikabe's island and connection rules, Heyawake's connection rule, Battleship's fleet rule and Masyu's single loop rule are hand-written checks. They never accept a wrong step. They do refuse some true steps that need a longer argument about the whole board. For those, use Assume or Case split.
-- **Tree Tent counts as solved when every tent is placed.** Links between trees and tents are only required where a step depends on them.
+- **Tree Tent counts as solved when every cell is decided.** Links between trees and tents are only required where a step depends on them.
 - **Battleship has no ship-part hints.** A given cell is ship or water. The fleet is listed under the board.
 - **Two demos miss a rule.** The Binary demo does not use the "no two rows are the same" rule, and the Masyu demo does not use the single loop rule. Both rules are in the rules list.
 - **Touch screens are untested.** Marking uses the left and right mouse buttons, and Tree Tent links use a drag.
@@ -58,9 +72,10 @@ python3 -m http.server 8766
 - `core.js`: constraints, the proof structure, the solver and the bot. No DOM.
 - `games/*.js`: one entry per game with its variables, constraints, clues and drawing.
 - `ui.js`, `index.html`, `style.css`: the shared interface.
+- `gen.js`: the puzzle generators. `editor.js`: the board editors. `worker.js`: runs checks and generation in the background.
 - `puzzles/all.js`: the puzzles and the demo puzzles.
 - `tests.js`, `tests.html`: the checks.
-- `tools/`: how the puzzle file was made. `convert.py` reads LEGUP's sample files. `dev.html` loads `tools/audit.js` and `tools/generate.js` to check and generate puzzles in the browser. `build_puzzles.py` writes `puzzles/all.js` from `tools/selected.json`.
+- `tools/`: how the puzzle file was made. `convert.py` reads LEGUP's sample files. `dev.html` loads `tools/audit.js` and `gen.js` to check and generate puzzles in the browser, and `tools/analyze.js` to measure proof lengths. `build_puzzles.py` writes `puzzles/all.js` from `tools/selected.json`.
 
 ## Adding a game
 

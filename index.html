@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Puzzle proofs</title>
-<link rel="stylesheet" href="style.css?v=2">
+<link rel="stylesheet" href="style.css?v=15">
 </head>
 <body>
 <canvas id="fx"></canvas>
@@ -35,6 +35,8 @@
     <h1 id="game-title"></h1>
     <label>Puzzle <select id="pick"></select></label>
     <button id="restart">Restart</button>
+    <button id="to-make">New puzzle…</button>
+    <button id="del-mine" hidden>Delete this puzzle</button>
     <button id="show-demo">Show demo</button>
     <button id="copystate">Copy State as Text</button>
   </header>
@@ -46,6 +48,7 @@
           <button id="m-suppose">Assume…</button>
           <button id="m-split">Case split…</button>
         </div>
+        <div class="group"><button id="hint-btn">Hint</button></div>
         <div class="group" id="marks"></div>
       </div>
       <div id="board"></div>
@@ -68,10 +71,12 @@
         <summary>Proof controls</summary>
         <ul>
           <li>Every mark needs a reason. Click the clue that is your reason. The cells that rule talks about get a dashed outline.</li>
-          <li>Some cells and labels carry more than one rule. Click the same place again to move to its next rule.</li>
+          <li>Row and column rules are cited from the edge of the board: click the number beside the row or below the column, or the row number or column letter. Some cells carry more than one rule of their own. Click such a cell again to move to its next rule.</li>
           <li>Then mark an outlined cell. "Mark as" shows what the left and right mouse buttons place. The step is accepted only if that one rule forces it. <kbd>Esc</kbd> drops the cited clue.</li>
           <li>The game applies the tedious consequences for you. The rules list says which ones.</li>
           <li><b>Undo</b> takes back one action at a time.</li>
+          <li><b>Hint</b> says whether any single rule forces something right now, and cites that clue for you. Press it again to see what the clue forces. It also points out a broken rule inside an assumption.</li>
+          <li>Each level of nesting has its own colour, on the board and in the proof: an assumption inside a case is a different colour from the case.</li>
           <li><b>Assume</b> opens an assumption, shown in purple. If a rule becomes impossible inside it, click that clue and press "This rule is broken". The assumption closes and its opposite is proved.</li>
           <li><b>Case split</b> and "Cases from this rule" open cases side by side. Click a case to work in it. A contradiction closes a case. "End cases" keeps whatever is true in every open case.</li>
         </ul>
@@ -90,15 +95,63 @@
   <footer id="foot-play"></footer>
 </section>
 
-<script src="core.js?v=2"></script>
-<script src="games/lightup.js?v=2"></script>
-<script src="games/counting.js?v=2"></script>
-<script src="games/numbers.js?v=2"></script>
-<script src="games/treetent.js?v=2"></script>
-<script src="games/regions.js?v=2"></script>
-<script src="games/masyu.js?v=2"></script>
-<script src="games/truthtable.js?v=2"></script>
-<script src="puzzles/all.js?v=2"></script>
-<script src="ui.js?v=2"></script>
+<section id="make" hidden>
+  <header>
+    <button id="mk-back">Back to puzzles</button>
+    <h1 id="mk-title"></h1>
+  </header>
+  <main>
+    <div class="left">
+      <div class="tools" id="mk-start">
+        <div class="group"><span>Start from</span>
+          <select id="mk-size"></select>
+          <button id="mk-blank">Blank board</button>
+          <button id="mk-copy">Copy of the current puzzle</button>
+        </div>
+        <div class="group" id="mk-gen"><span>Or generate</span>
+          <select id="mk-want">
+            <option value="direct">Easy: direct steps only</option>
+            <option value="some">Medium: 1 or 2 assumptions</option>
+            <option value="many">Hard: 3 or more assumptions</option>
+            <option value="any">Any difficulty</option>
+          </select>
+          <button id="mk-generate">Generate</button>
+        </div>
+      </div>
+      <div class="tools"><div class="group" id="mk-tools"></div></div>
+      <div id="mk-fields"></div>
+      <div id="mk-board"></div>
+      <div id="mk-note"></div>
+    </div>
+    <div class="right">
+      <div class="tools">
+        <h2>Check</h2>
+        <button id="mk-check">Check board</button>
+        <button id="mk-cancel" hidden>Cancel</button>
+        <button id="mk-save" class="primary">Save and play</button>
+      </div>
+      <div id="mk-result"></div>
+      <details id="d-text">
+        <summary>Puzzle as text</summary>
+        <p>This text is the whole puzzle. Copy it to share the puzzle, or paste one here and press "Load from text".</p>
+        <textarea id="mk-text" spellcheck="false"></textarea>
+        <div class="acts"><button id="mk-load">Load from text</button><button id="mk-copytext">Copy text</button></div>
+      </details>
+    </div>
+  </main>
+</section>
+
+<script src="core.js?v=15"></script>
+<script src="games/lightup.js?v=15"></script>
+<script src="games/counting.js?v=15"></script>
+<script src="games/numbers.js?v=15"></script>
+<script src="games/treetent.js?v=15"></script>
+<script src="games/regions.js?v=15"></script>
+<script src="games/masyu.js?v=15"></script>
+<script src="games/truthtable.js?v=15"></script>
+<script src="gen.js?v=15"></script>
+<script src="editor.js?v=15"></script>
+<script src="puzzles/all.js?v=15"></script>
+<script src="ui.js?v=15"></script>
 </body>
 </html>

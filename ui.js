@@ -7,6 +7,7 @@
   const REPO = 'https://github.com/stanleybak2/puzzle-proofs';
 
   let game = null, defs = [], pi = 0, G = null, proof = null;
+  let mk = null;   // set while the New puzzle screen is open
   let anchor = null, anchorAt = null, anchorIdx = 0, mode = 'deduce', mark = 0, digit = 0, msg = null, wasSolved = false, demo = null, geo = null;
   const say = (text, kind) => { msg = text ? { text, kind: kind || 'err' } : null; };
 
@@ -42,8 +43,8 @@
 
   // ---------- navigation ----------
   function showHome() {
-    game = null; G = null; demo = null;
-    $('play').hidden = true; $('home').hidden = false; closeWin(); stopFx();
+    game = null; G = null; demo = null; mk = null;
+    $('play').hidden = true; $('make').hidden = true; $('home').hidden = false; closeWin(); stopFx();
     const all = readAll(), done = all.done || {};
     const box = $('cards'); box.textContent = '';
     for (const id of LG.order) {
@@ -60,8 +61,8 @@
     document.title = 'Puzzle proofs';
   }
   function openGame(id, puzzleId) {
-    game = LG.games[id]; defs = LG.puzzles[id];
-    $('home').hidden = true; $('play').hidden = false;
+    game = LG.games[id]; defs = LG.puzzles[id]; mk = null;
+    $('home').hidden = true; $('make').hidden = true; $('play').hidden = false;
     $('game-title').textContent = game.title; document.title = game.title + ' proofs';
     const rules = $('rules'); rules.textContent = ''; game.rules.forEach(r => rules.appendChild(el('li', null, r)));
     for (const sel of [$('pick'), $('win-pick')]) { sel.textContent = ''; defs.forEach((p, i) => { const o = el('option', null, p.title); o.value = i; sel.appendChild(o); }); }
@@ -193,29 +194,50 @@
     for (const t of d.tries) { last = proof.tryStep(t.anchor, t.v, t.val); if (last.ok) { say(one(t.v, t.val) + '.', 'ok'); anchor = null; anchorAt = null; return render(); } }
     say(d.failMsg || last.msg); render();
   }
+  // Hint: is there a direct step? The first press cites the clue. A second press shows what it forces.
+  let hinted = null;
+  function hint() {
+    if (demo) return;
+    say(null); mode = 'deduce';
+    const cite = key => { anchor = key; anchorAt = G.anchor(key).at || null; };
+    const blk = proof.path().slice(-1)[0], f = proof.facts();
+    if (proof.status()) { say('This puzzle is already solved.', 'ok'); return render(); }
+    if (blk.closed) { say('Hint: this case is closed. Click another case in the proof, or press "End cases".', 'ok'); return render(); }
+    const broke = proof.path().length > 1 || G.rootContradiction ? G.anchorKeys.find(k => proof.isBroken(k, f)) : null;
+    if (broke) { cite(broke); say('Hint: a rule is broken. ' + brokenText(broke).replace(/^./, c => c.toUpperCase()) + '. Press "This rule is broken".', 'ok'); return render(); }
+    const key = G.anchorKeys.find(k => proof.forcedBy(k, f).length);
+    if (!key) { anchor = null; anchorAt = null; say('Hint: no single rule forces anything right now. Use Assume or Case split.', 'ok'); return render(); }
+    const again = hinted && hinted.proof === proof && hinted.ver === proof._ver && hinted.key === key;
+    cite(key);
+    if (!again) { hinted = { proof, ver: proof._ver, key }; say('Hint: a direct step is available from ' + G.anchor(key).text + '. Press Hint again to see what it forces.', 'ok'); return render(); }
+    const m = proof.forcedBy(key, f)[0];
+    say('Hint: ' + G.anchor(key).text + ' forces that ' + one(m[0], m[1]) + '.', 'ok'); render(); highlight([m[0]], true);
+  }
   const act = (fn, after) => () => { say(null); const r = fn(); if (report(r, typeof after === 'string' ? after : null) && typeof after === 'function') after(r); render(); };
 
   // ---------- board ----------
-  function renderBoard(f) {
-    const V = G.view, w = V.w, h = V.h, cl = V.clues || {};
+  // Draws a board. With no extra arguments it draws the puzzle being played. The editor passes its own game and mount.
+  function renderBoard(f, GG, mount) {
+    const main = !GG; GG = GG || G; mount = mount || $('board');
+    const V = GG.view, w = V.w, h = V.h, cl = V.clues || {};
     const room = innerWidth <= 520 ? innerWidth - 70 : innerWidth * 0.5 - 70;
     const s = Math.max(20, Math.min(54, Math.floor(Math.min(500, room) / (w + (cl.w ? 0.7 : 0) + (cl.e ? 0.7 : 0)))));
     const band = Math.round(s * 0.7), ox = 20 + (cl.w ? band : 0), oy = 18 + (cl.n ? band : 0);
     const W = ox + w * s + (cl.e ? band : 4), H = oy + h * s + (cl.s ? band : 4);
     geo = { s, ox, oy, x: c => ox + c * s, y: r => oy + r * s, cx: id => ox + (id % w) * s + s / 2, cy: id => oy + Math.floor(id / w) * s + s / 2 };
     if (V.begin) V.begin(f);
-    const a = anchor ? G.anchor(anchor) : null, o = [];
+    const a = main && anchor ? GG.anchor(anchor) : null, o = [];
     const icon = (name, x, y, size) => '<g transform="translate(' + x + ' ' + y + ') scale(' + (size / 24) + ')">' + ICON[name] + '</g>';
     o.push('<svg width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H + '">');
     const lab = (cls, x, y, text, attrs) => '<text class="' + cls + '" x="' + x + '" y="' + y + '" text-anchor="middle" dominant-baseline="central" ' + (attrs || '') + '>' + esc(text) + '</text>';
-    const clickable = (t, i) => (G.anchorsAt({ t, i }, f) || []).length > 0;
+    const clickable = (t, i) => (GG.anchorsAt({ t, i }, f) || []).length > 0;
     for (let c = 0; c < w; c++) { const ck = clickable('col', c); o.push(lab('lab' + (ck ? ' click' : ''), geo.x(c) + s / 2, 9, String.fromCharCode(65 + c), ck ? 'data-t="col" data-i="' + c + '"' : '')); }
     for (let r = 0; r < h; r++) { const ck = clickable('row', r); o.push(lab('lab' + (ck ? ' click' : ''), 10, geo.y(r) + s / 2, r + 1, ck ? 'data-t="row" data-i="' + r + '"' : '')); }
     const cluePos = (side, i) => side === 'n' ? [geo.x(i) + s / 2, oy - band / 2] : side === 's' ? [geo.x(i) + s / 2, oy + h * s + band / 2] : side === 'w' ? [ox - band / 2, geo.y(i) + s / 2] : [ox + w * s + band / 2, geo.y(i) + s / 2];
     for (const side of ['n', 's', 'e', 'w']) (cl[side] || []).forEach((t, i) => { if (t == null) return; const [x, y] = cluePos(side, i); o.push(lab('clue', x, y, t, 'font-size="' + Math.round(s * 0.42) + '" data-t="clue" data-side="' + side + '" data-i="' + i + '"')); });
     for (let id = 0; id < w * h; id++) {
       const d = V.cell(id, f) || {}, x = geo.x(id % w), y = geo.y(Math.floor(id / w)), src = d.src;
-      o.push('<g class="cellg' + (src && src.depth > 0 ? ' hyp' : '') + '" data-t="cell" data-id="' + id + '">');
+      o.push('<g class="cellg' + (src && src.depth > 0 ? ' hyp d' + ((src.depth - 1) % 4 + 1) : '') + '" data-t="cell" data-id="' + id + '">');
       o.push('<rect class="c-bg ' + (d.bg || '') + '" x="' + x + '" y="' + y + '" width="' + s + '" height="' + s + '"/>');
       if (d.icon) o.push(icon(d.icon, x + s * 0.11, y + s * 0.11, s * 0.78));
       if (d.text != null) o.push('<text class="' + (d.textCls || 'val') + '" x="' + (x + s / 2) + '" y="' + (y + s / 2 + 1) + '" text-anchor="middle" dominant-baseline="central" font-size="' + Math.round(s * (d.small ? 0.34 : 0.5)) + '">' + esc(d.text) + '</text>');
@@ -236,7 +258,7 @@
     if (V.overlay) o.push(V.overlay(f, geo, icon));
     if (V.edges) for (const e of V.edges) {
       const x1 = geo.cx(e.a), y1 = geo.cy(e.a), x2 = geo.cx(e.b), y2 = geo.cy(e.b), st = f.get(e.v);
-      if (st && st.val) o.push('<line class="edge-on' + (st.depth > 0 ? ' hyp-edge' : '') + '" x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 + '"/>');
+      if (st && st.val) o.push('<line class="edge-on' + (st.depth > 0 ? ' hyp-edge d' + ((st.depth - 1) % 4 + 1) : '') + '" x1="' + x1 + '" y1="' + y1 + '" x2="' + x2 + '" y2="' + y2 + '"/>');
       else if (st && !st.auto) { const mx = (x1 + x2) / 2, my = (y1 + y2) / 2, q = s * 0.09; o.push('<path class="edge-x" d="M' + (mx - q) + ' ' + (my - q) + 'l' + 2 * q + ' ' + 2 * q + 'M' + (mx + q) + ' ' + (my - q) + 'l' + (-2 * q) + ' ' + 2 * q + '"/>'); }
       o.push('<line class="edge-hit" data-t="edge" data-v="' + e.v + '" x1="' + (x1 * 0.72 + x2 * 0.28) + '" y1="' + (y1 * 0.72 + y2 * 0.28) + '" x2="' + (x1 * 0.28 + x2 * 0.72) + '" y2="' + (y1 * 0.28 + y2 * 0.72) + '"/>');
     }
@@ -249,7 +271,7 @@
       else if (t && t.t === 'clue') { const [x, y] = cluePos(t.side, t.i); o.push('<circle class="anchor-box" cx="' + x + '" cy="' + y + '" r="' + band * 0.46 + '"/>'); }
     }
     o.push('<g id="hl"></g><line id="dragline" class="drag-line" visibility="hidden"/></svg>');
-    $('board').innerHTML = o.join('');
+    mount.innerHTML = o.join('');
   }
   function highlight(vars, on) {
     const hl = document.getElementById('hl'); if (!hl) return;
@@ -290,6 +312,7 @@
     h.appendChild(el('div', 'rule', 'Rule: ' + a.rule));
     const keys = anchorAt ? (G.anchorsAt(anchorAt, f) || []) : [];
     if (keys.length > 1) h.appendChild(el('div', 'more', 'Rule ' + (keys.indexOf(anchor) + 1) + ' of ' + keys.length + ' at this place. Click it again for the next one.'));
+    if (a.info) return void h.appendChild(el('div', null, 'The game applies this rule for you, so there is nothing to mark here.'));
     h.appendChild(el('div', null, a.how || 'Now mark something this rule forces.'));
     const acts = el('div', 'acts');
     const btn = (label, fn) => { const x = el('button', null, label); x.onclick = fn; acts.appendChild(x); };
@@ -308,10 +331,13 @@
       return d;
     };
     const closedLine = b => el('div', 'bot', 'Contradiction: ' + (b.closed.byCases ? 'every case ended in a contradiction' : brokenText(b.closed.anchor)));
+    let depth = 0;   // nesting level of the box being drawn; each level gets its own colour
     const box = (b, title) => {
-      const d = el('div', 'box' + (b === active ? ' active' : '') + (b.closed ? ' shut' : ''));
+      depth++;
+      const d = el('div', 'box d' + ((depth - 1) % 4 + 1) + (b === active ? ' active' : '') + (b.closed ? ' shut' : ''));
       d.appendChild(el('div', 'head', title));
       block(b, d);
+      depth--;
       if (b.closed) d.appendChild(closedLine(b));
       else if (!b.items.length) d.appendChild(el('div', 'empty', b === active ? 'Deduce here…' : 'Click to work in this case'));
       d.onclick = e => { e.stopPropagation(); if (!demo && proof.select(b)) { anchor = null; anchorAt = null; say(null); render(); } };
@@ -338,13 +364,18 @@
     if (!proof.root.items.length && !proof.root.closed) root.appendChild(el('div', 'empty', 'No steps yet. Click a clue on the board to start.'));
     const box0 = root.querySelector('.box.active');
     root.scrollTop = root.scrollHeight;
-    if (box0) { const pr = root.getBoundingClientRect(), r2 = box0.getBoundingClientRect(); if (r2.bottom < pr.top + 40 || r2.bottom > pr.bottom) root.scrollTop += r2.bottom - pr.bottom + 10; }
+    if (box0) {
+      const pr = root.getBoundingClientRect(), r2 = box0.getBoundingClientRect(); if (r2.bottom < pr.top + 40 || r2.bottom > pr.bottom) root.scrollTop += r2.bottom - pr.bottom + 10;
+      // Bring the active case into view sideways too, in every row of cases it sits in.
+      for (let row = box0.closest('.branches'); row; row = row.parentElement.closest('.branches')) { const a = box0.getBoundingClientRect(), b = row.getBoundingClientRect(); if (a.right > b.right) row.scrollLeft += a.right - b.right + 4; else if (a.left < b.left) row.scrollLeft -= b.left - a.left + 4; }
+    }
   }
   function fitProof() {
     const col = document.querySelector('.right');
     col.style.maxHeight = innerWidth <= 520 ? '' : Math.max(220, innerHeight - col.getBoundingClientRect().top - 12) + 'px';
   }
   function render() {
+    if (mk) return mkRender();
     if (!G) return;
     const path = proof.path(), f = proof.facts();
     if (anchor && !G.anchor(anchor)) { anchor = null; anchorAt = null; }
@@ -356,7 +387,8 @@
     $('discard').disabled = !!demo || path.length < 2;
     const item = path.length > 1 ? path[path.length - 2].items.slice(-1)[0] : null;
     $('discard').textContent = item && item.type === 'cases' ? 'Discard cases' : 'Discard assumption';
-    for (const id of ['pick', 'restart', 'copystate']) $(id).disabled = !!demo;
+    for (const id of ['pick', 'restart', 'copystate', 'to-make', 'hint-btn']) $(id).disabled = !!demo;
+    $('del-mine').hidden = !defs[pi].mine || !!demo;
     $('show-demo').hidden = !game.demo || !!demo;
     const m = $('msg'); m.textContent = msg ? msg.text : ''; m.className = msg ? msg.kind : '';
     const st = demo ? null : proof.status();
@@ -427,11 +459,13 @@
     const dl = document.getElementById('dragline'); if (dl) dl.setAttribute('visibility', 'hidden');
     if (!from || e.button !== 0 || !G) return;
     const hit = document.elementFromPoint(e.clientX, e.clientY), to = hit && board.contains(hit) ? targetOf({ target: hit }) : null;
-    if (to && from.t === 'cell' && to.t === 'cell' && to.id !== from.id) { dragged = true; onDrag(from.id, to.id); }
+    // The flag only has to swallow the click that may follow this drag, so it is cleared right after.
+    if (to && from.t === 'cell' && to.t === 'cell' && to.id !== from.id) { dragged = true; setTimeout(() => { dragged = false; }, 0); onDrag(from.id, to.id); }
   });
   board.addEventListener('click', e => { if (dragged) { dragged = false; return; } const t = targetOf(e); if (t) onTarget(t, false); });
   board.addEventListener('contextmenu', e => { const t = targetOf(e); if (t) { e.preventDefault(); onTarget(t, true); } });
   for (const m of ['deduce', 'suppose', 'split']) $('m-' + m).onclick = () => { mode = mode === m ? 'deduce' : m; anchor = null; anchorAt = null; say(null); render(); };
+  $('hint-btn').onclick = hint;
   $('undo').onclick = act(() => proof.undo());
   $('discard').onclick = act(() => proof.discard(), 'Discarded.');
   $('endcases').onclick = act(() => proof.endCases(), r => say(r.open === 1 ? 'Only one case is still open, so everything in it holds.' : 'Kept what agrees in every open case.', 'ok'));
@@ -473,7 +507,145 @@
   const foot = 'Puzzles are from the <a href="https://github.com/Bram-Hub/LEGUP">LEGUP</a> sample files where LEGUP has them, and generated otherwise. Code and puzzles are released under the <a href="' + REPO + '/blob/main/LICENSE">GNU GPL-3.0</a>. <a href="' + REPO + '">Source on GitHub</a>.';
   $('foot-home').innerHTML = foot; $('foot-play').innerHTML = foot;
 
-  window.LUI = { get G() { return G; }, get proof() { return proof; }, get demo() { return demo; }, render, openGame, showHome, stateText, onTarget, onDrag };
+
+  // ---------- New puzzle screen: generate or edit a board, check it, save it ----------
+  const MINE = 'puzzle-proofs:mine';
+  const readMine = () => { try { return JSON.parse(localStorage.getItem(MINE)) || {}; } catch (e) { return {}; } };
+  for (const [gid, list] of Object.entries(readMine())) if (LG.puzzles[gid]) list.forEach(d => LG.puzzles[gid].push(d));
+  let job = null;
+  // Checks and generation run in a worker. If one overruns its time limit by two seconds, the worker is stopped outright.
+  function runJob(msg, ms) {
+    return new Promise(resolve => {
+      let done = false, w = null, timer = null;
+      const finish = r => { if (done) return; done = true; clearTimeout(timer); if (w) w.terminate(); job = null; resolve(r); };
+      try { w = new Worker('worker.js?v=12'); } catch (e) { w = null; }
+      job = { cancel: () => finish({ cancelled: true }) };
+      if (!w) {   // no worker (for example a page opened straight from disk): run here, still under the time limit
+        setTimeout(() => { try { finish(msg.cmd === 'rate' ? LG.rate(msg.game, msg.def, msg.ms) : LG.generate(msg.game, msg.n, msg.want, msg.ms)); } catch (e) { finish({ error: String(e.message || e) }); } }, 30);
+        return;
+      }
+      timer = setTimeout(() => finish({ timedOut: true }), ms + 2000);
+      w.onmessage = e => finish(e.data.res);
+      w.onerror = () => { const r = (() => { try { return msg.cmd === 'rate' ? LG.rate(msg.game, msg.def, msg.ms) : LG.generate(msg.game, msg.n, msg.want, msg.ms); } catch (e) { return { error: String(e.message || e) }; } })(); finish(r); };
+      w.postMessage(msg);
+    });
+  }
+  const cleanDef = def => { const d = JSON.parse(JSON.stringify(def)); for (const k of ['id', 'title', 'level', 'from', 'mine', 'seed', 'set']) delete d[k]; return d; };
+  function openMaker() {
+    const ed = LG.editors[game.id], cur = defs[pi];
+    mk = { tool: 0, def: null, rating: null, busy: null, note: null };
+    $('play').hidden = true; $('make').hidden = false; closeWin(); stopFx();
+    $('mk-title').textContent = 'New ' + game.title + ' puzzle';
+    const size = $('mk-size'); size.textContent = '';
+    (ed.sizes || []).forEach(n => { const o = el('option', null, n + ' x ' + n); o.value = n; size.appendChild(o); });
+    size.hidden = !ed.sizes; $('mk-blank').hidden = !ed.sizes;
+    $('mk-gen').hidden = !(LG.gen && LG.gen[game.id]);
+    mk.def = cleanDef(cur);
+    if (ed.sizes) { const n = G ? G.view.w : ed.sizes[0]; size.value = ed.sizes.includes(n) ? n : ed.sizes[0]; }
+    mk.note = 'This is a copy of the puzzle you were playing. Change it, start from a blank board, or generate a new one.';
+    mkRender();
+  }
+  function mkSet(def, rating, note) { mk.def = cleanDef(def); mk.rating = rating || null; mk.tool = 0; mk.note = note || null; mkRender(); }
+  function rateText(r) {
+    if (!r) return ['', 'Not checked yet. Press "Check board".'];
+    if (r.cancelled) return ['bad', 'Cancelled.'];
+    if (r.error) return ['bad', 'This board cannot be used: ' + r.error + '.'];
+    if (r.timedOut) return ['bad', 'The check did not finish within its time limit, so this board is not rated. Try a smaller board or add clues.'];
+    const tt = game.id === 'truthtable';
+    if (!r.ok) return ['bad', r.solutions === 0 ? 'This board has no solution.' : tt ? 'More than one counterexample exists. Add a premise or change the statements so that at most one is left.' : 'This board has more than one solution. Add clues until only one is left.'];
+    const head = tt ? (r.solutions === 0 ? 'No counterexample exists, so the argument is valid.' : 'Exactly one counterexample exists, so the argument is invalid.') : 'Exactly one solution.';
+    const lines = ' The proof takes about ' + r.lines + (r.lines === 1 ? ' line.' : ' lines.');
+    if (r.level === 'direct') return ['good', head + ' Difficulty: easy. Direct steps are enough.' + lines];
+    if (r.level === 'assume') return ['good', head + ' Difficulty: ' + (r.assumptions <= 2 ? 'medium' : 'hard') + '. It needs about ' + r.assumptions + (r.assumptions === 1 ? ' assumption.' : ' assumptions.') + lines];
+    return ['good', head + ' Difficulty: very hard. It needs more than 12 assumptions, or assumptions inside assumptions.'];
+  }
+  function mkRender() {
+    const ed = LG.editors[game.id]; let MG = null, err = null;
+    try {
+      MG = game.create(mk.def);
+      if (ed.sides) { const cl = MG.view.clues = MG.view.clues || {}; for (const sd of ed.sides) cl[sd] = Array.from({ length: sd === 'n' || sd === 's' ? MG.view.w : MG.view.h }, (_, i) => { const v = (cl[sd] || [])[i]; return v == null ? '·' : v; }); }
+      renderBoard(LG.baseFacts(MG), MG, $('mk-board'));
+    } catch (e) { err = String(e.message || e); $('mk-board').textContent = ''; }
+    mk.G = MG;
+    const tools = ed.tools(mk.def), tb = $('mk-tools'); tb.textContent = '';
+    if (tools.length) tb.appendChild(el('span', null, 'Click places'));
+    tools.forEach((t, i) => { const b = el('button', i === mk.tool ? 'on' : null, t.label); b.onclick = () => { mk.tool = i; mkRender(); }; tb.appendChild(b); });
+    const fb = $('mk-fields'); fb.textContent = '';
+    (ed.fields || []).forEach(fd => {
+      const lab = el('label', null, fd.label), inp = el(fd.multiline ? 'textarea' : 'input');
+      inp.value = fd.get(mk.def); inp.spellcheck = false;
+      inp.onchange = () => { if (fd.set(mk.def, inp.value)) { mk.rating = null; mk.note = null; } else mk.note = 'That value cannot be used.'; mkRender(); };
+      lab.appendChild(inp); fb.appendChild(lab);
+    });
+    $('mk-note').textContent = ed.note || '';
+    const res = $('mk-result'); res.textContent = '';
+    if (mk.busy) res.appendChild(el('div', null, mk.busy));
+    else {
+      if (err) res.appendChild(el('div', 'bad', 'This board is not complete yet: ' + err + '.'));
+      else { const [cls, text] = rateText(mk.rating); res.appendChild(el('div', cls, text)); }
+      if (mk.note) res.appendChild(el('div', null, mk.note));
+    }
+    for (const id of ['mk-check', 'mk-generate', 'mk-blank', 'mk-copy', 'mk-load']) $(id).disabled = !!mk.busy;
+    $('mk-check').disabled = !!mk.busy || !!err;
+    $('mk-cancel').hidden = !mk.busy;
+    $('mk-save').disabled = !!mk.busy || !(mk.rating && mk.rating.ok);
+    if (document.activeElement !== $('mk-text')) $('mk-text').value = JSON.stringify(mk.def);
+  }
+  function mkEdit(changed) { if (changed) { mk.rating = null; mk.note = null; } else mk.note = 'That tool does nothing there. Pick another tool, or click a different part of the board.'; mkRender(); }
+  function mkCheck() {
+    mk.busy = 'Checking for a single solution and rating the difficulty…'; mk.note = null; mkRender();
+    runJob({ cmd: 'rate', game: game.id, def: mk.def, ms: 6000 }, 6000).then(r => { if (!mk) return; mk.busy = null; mk.rating = r; mkRender(); });
+  }
+  function mkGenerate() {
+    const n = +$('mk-size').value, want = $('mk-want').value;
+    mk.busy = 'Generating. This stops by itself after 8 seconds…'; mkRender();
+    runJob({ cmd: 'generate', game: game.id, n, want, ms: 8000 }, 8000).then(r => {
+      if (!mk) return; mk.busy = null;
+      if (r.def) mkSet(r.def, r.rating, r.timedOut ? 'No board of that difficulty turned up in 8 seconds. This is the closest one found.' : null);
+      else { mk.note = r.cancelled ? 'Cancelled.' : r.error ? 'Could not generate: ' + r.error : 'No board turned up in 8 seconds. Try again, or pick another size or difficulty.'; mkRender(); }
+    });
+  }
+  function mkSave() {
+    const r = mk.rating; if (!r || !r.ok) return;
+    const all = readMine(), list = all[game.id] = all[game.id] || [], d = cleanDef(mk.def), MG = game.create(d);
+    d.id = 'mine-' + Date.now().toString(36); d.mine = true; d.from = 'you'; d.level = r.level === 'direct' ? 'direct' : 'assume';
+    d.title = 'Mine ' + (list.length + 1) + ': ' + (game.id === 'truthtable' ? 'argument' : MG.view.w + 'x' + MG.view.h) + (r.level === 'direct' ? ' easy' : ' harder');
+    list.push(d);
+    try { localStorage.setItem(MINE, JSON.stringify(all)); } catch (e) { /* kept for this visit only */ }
+    LG.puzzles[game.id].push(d);
+    openGame(game.id, d.id);
+  }
+  function deleteMine() {
+    const d = defs[pi]; if (!d.mine || !window.confirm('Delete "' + d.title + '"? This cannot be undone.')) return;
+    const all = readMine(); all[game.id] = (all[game.id] || []).filter(x => x.id !== d.id);
+    try { localStorage.setItem(MINE, JSON.stringify(all)); } catch (e) { /* ignore */ }
+    writeAll(a => { if (a.p) delete a.p[game.id + '/' + d.id]; if (a.done) delete a.done[game.id + '/' + d.id]; });
+    LG.puzzles[game.id].splice(LG.puzzles[game.id].indexOf(d), 1);
+    const id = game.id; G = null; openGame(id);
+  }
+  $('to-make').onclick = openMaker;
+  $('del-mine').onclick = deleteMine;
+  $('mk-back').onclick = () => { if (job) job.cancel(); const id = game.id, back = defs[pi].id; mk = null; openGame(id, back); };
+  $('mk-blank').onclick = () => mkSet(LG.editors[game.id].blank(+$('mk-size').value));
+  $('mk-copy').onclick = () => mkSet(defs[pi], null, 'This is a copy of the puzzle you were playing.');
+  $('mk-check').onclick = mkCheck;
+  $('mk-generate').onclick = mkGenerate;
+  $('mk-cancel').onclick = () => { if (job) job.cancel(); };
+  $('mk-save').onclick = mkSave;
+  $('mk-load').onclick = () => { try { const d = JSON.parse($('mk-text').value); if (!d || typeof d !== 'object') throw new Error('not a puzzle'); game.create(d); $('mk-text').blur(); mkSet(d, null, 'Loaded from text.'); } catch (e) { mk.note = 'That text is not a ' + game.title + ' puzzle.'; mkRender(); } };
+  $('mk-copytext').onclick = () => { const t = $('mk-text').value; if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(t).then(() => { mk.note = 'Copied.'; mkRender(); }, () => window.prompt('Copy this:', t)); else window.prompt('Copy this:', t); };
+  const mkb = $('mk-board'); let mdown = null, mdragged = false;
+  const mkTool = () => LG.editors[game.id].tools(mk.def)[mk.tool] || {};
+  mkb.addEventListener('pointerdown', e => { if (e.button === 0) { mdown = targetOf(e); mdragged = false; } });
+  window.addEventListener('pointerup', e => {
+    const from = mdown; mdown = null;
+    if (!mk || mk.busy || !from || e.button !== 0) return;
+    const hit = document.elementFromPoint(e.clientX, e.clientY), to = hit && mkb.contains(hit) ? targetOf({ target: hit }) : null, ed = LG.editors[game.id];
+    if (to && from.t === 'cell' && to.t === 'cell' && to.id !== from.id) { mdragged = true; setTimeout(() => { mdragged = false; }, 0); mkEdit(!!(ed.drag && ed.drag(mk.def, from.id, to.id, mkTool()))); }
+  });
+  mkb.addEventListener('click', e => { if (mdragged) { mdragged = false; return; } const t = targetOf(e); if (t && mk && !mk.busy) mkEdit(!!LG.editors[game.id].apply(mk.def, t, mkTool())); });
+
+  window.LUI = { get mk() { return mk; }, openMaker, runJob,  get G() { return G; }, get proof() { return proof; }, get demo() { return demo; }, render, openGame, showHome, stateText, onTarget, onDrag };
   const last = readAll().last;
   if (last && LG.games[last.game] && (LG.puzzles[last.game] || []).length) openGame(last.game, last.puzzle); else showHome();
 })();

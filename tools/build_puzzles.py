@@ -8,7 +8,7 @@ here = os.path.dirname(os.path.abspath(__file__))
 data = json.load(open(os.path.join(here, 'selected.json')))
 ORDER = ['lightup', 'sudoku', 'binary', 'fillapix', 'minesweeper', 'starbattle', 'thermometer', 'skyscrapers',
          'treetent', 'battleship', 'nurikabe', 'heyawake', 'masyu', 'truthtable']
-DROP = ('set', 'seed', 'src', 'size')
+DROP = ('set', 'seed', 'src', 'size', 'need')
 out = {}
 for game in ORDER:
     items = []
@@ -18,8 +18,8 @@ for game in ORDER:
             items.append(d)
     area = lambda d: eval(d['size'].replace('x', '*'))
     if game != 'truthtable':   # the truth table puzzles keep their written order
-        items.sort(key=lambda d: (d['level'] != 'direct', area(d)))
-    seen, count, res = set(), {}, []
+        items.sort(key=lambda d: (d['level'] != 'direct', area(d), d.get('need', 0)))
+    seen, count, res, ids = set(), {}, [], set()
     for d in items:
         key = json.dumps({k: v for k, v in d.items() if k not in DROP + ('id', 'title', 'from', 'level')}, sort_keys=True)
         if key in seen:
@@ -30,6 +30,12 @@ for game in ORDER:
             count[label] = count.get(label, 0) + 1
             d['title'] = '%s %d' % (label, count[label])
         d['id'] = str(d.get('id') or 'g%s-%s' % (d['size'], d.get('seed')))
+        # LEGUP reuses file names across folders, so two different puzzles can share a name.
+        n = 2
+        base = d['id']
+        while d['id'] in ids:
+            d['id'] = '%s-%d' % (base, n); n += 1
+        ids.add(d['id'])
         res.append({k: v for k, v in d.items() if k not in DROP})
     out[game] = res
 with open(os.path.join(here, '..', 'puzzles', 'all.js'), 'w') as fh:
